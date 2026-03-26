@@ -9,10 +9,10 @@ import pytest
 
 from digo.pdf_processor import DocumentChunk, IndexedDocument, ResourceLibrary
 
-
 # ---------------------------------------------------------------------------
 # DocumentChunk
 # ---------------------------------------------------------------------------
+
 
 class TestDocumentChunk:
     def test_reference_format(self):
@@ -28,6 +28,7 @@ class TestDocumentChunk:
 # ---------------------------------------------------------------------------
 # IndexedDocument (with mocked pdfplumber)
 # ---------------------------------------------------------------------------
+
 
 class TestIndexedDocument:
     def _mock_pdf(self, pages_text: list[str]):
@@ -120,6 +121,7 @@ class TestIndexedDocument:
 # ---------------------------------------------------------------------------
 # ResourceLibrary
 # ---------------------------------------------------------------------------
+
 
 class TestResourceLibrary:
     def _load_doc(self, lib: ResourceLibrary, name: str, pages: list[str], tmp_path: Path):

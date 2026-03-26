@@ -13,14 +13,17 @@ import logging
 import textwrap
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from digo import config
-from digo.meeting_transcript import MeetingTranscript, load_transcript_from_file, load_transcript_from_text
-from digo.pdf_processor import DocumentChunk, ResourceLibrary
+from digo.meeting_transcript import (
+    MeetingTranscript,
+    load_transcript_from_file,
+    load_transcript_from_text,
+)
+from digo.pdf_processor import ResourceLibrary
 from digo.prompts import (
     ESCALATION_EMAIL_TEMPLATE,
     NOTE_TAKING_PROMPT_TEMPLATE,
@@ -53,7 +56,7 @@ class DigoAgent:
 
     def __init__(self) -> None:
         self._library = ResourceLibrary()
-        self._llm: Optional[anthropic.Anthropic] = None
+        self._llm: anthropic.Anthropic | None = None
         self._init_llm()
 
     # ------------------------------------------------------------------
@@ -63,8 +66,7 @@ class DigoAgent:
     def _init_llm(self) -> None:
         if not config.ANTHROPIC_API_KEY:
             logger.warning(
-                "ANTHROPIC_API_KEY not set. LLM calls will not work until "
-                "the key is provided."
+                "ANTHROPIC_API_KEY not set. LLM calls will not work until the key is provided."
             )
             return
         self._llm = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -128,9 +130,7 @@ class DigoAgent:
     def _process_transcript(self, transcript: MeetingTranscript) -> str:
         """Core pipeline: extract relevant context, call LLM, return notes."""
         # Build Battle Plan and Beyond Bitcoin excerpts relevant to the meeting
-        battle_plan_excerpts = self._get_relevant_excerpts(
-            BATTLE_PLAN_KEY, transcript.full_text()
-        )
+        battle_plan_excerpts = self._get_relevant_excerpts(BATTLE_PLAN_KEY, transcript.full_text())
         beyond_bitcoin_excerpts = self._get_relevant_excerpts(
             BEYOND_BITCOIN_KEY, transcript.full_text()
         )
@@ -154,9 +154,7 @@ class DigoAgent:
 
     def generate_progress_report(self, meeting_notes: str) -> str:
         """Generate a progress report from existing meeting notes."""
-        battle_plan_excerpts = self._get_relevant_excerpts(
-            BATTLE_PLAN_KEY, meeting_notes
-        )
+        battle_plan_excerpts = self._get_relevant_excerpts(BATTLE_PLAN_KEY, meeting_notes)
 
         prompt = PROGRESS_REPORT_PROMPT_TEMPLATE.format(
             meeting_notes=meeting_notes,
@@ -248,8 +246,7 @@ class DigoAgent:
         """Send a prompt to the LLM and return the response text."""
         if self._llm is None:
             raise RuntimeError(
-                "LLM client not initialised. "
-                "Please set ANTHROPIC_API_KEY in your environment."
+                "LLM client not initialised. Please set ANTHROPIC_API_KEY in your environment."
             )
 
         response = self._llm.messages.create(
@@ -261,11 +258,7 @@ class DigoAgent:
         )
 
         # Extract text from response
-        text_blocks = [
-            block.text
-            for block in response.content
-            if hasattr(block, "text")
-        ]
+        text_blocks = [block.text for block in response.content if hasattr(block, "text")]
         return "\n".join(text_blocks)
 
     # ------------------------------------------------------------------

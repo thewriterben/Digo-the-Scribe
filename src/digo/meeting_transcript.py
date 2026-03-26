@@ -19,7 +19,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class TranscriptLine:
     """One utterance from the meeting transcript."""
 
     speaker: str
-    timestamp: Optional[str]   # e.g. "00:03:15" — None if not available
+    timestamp: str | None  # e.g. "00:03:15" — None if not available
     text: str
 
     def formatted(self) -> str:
@@ -42,7 +41,7 @@ class MeetingTranscript:
     """All lines from a single meeting session."""
 
     meeting_title: str
-    meeting_date: str           # ISO-8601 date string, e.g. "2026-03-26"
+    meeting_date: str  # ISO-8601 date string, e.g. "2026-03-26"
     participants: list[str] = field(default_factory=list)
     lines: list[TranscriptLine] = field(default_factory=list)
 
@@ -64,9 +63,7 @@ class MeetingTranscript:
 # Google Meet caption export format (approximate):
 #   00:00:05 Speaker Name\n
 #   Some spoken text.\n
-_GMEET_LINE_RE = re.compile(
-    r"^(?P<timestamp>\d{1,2}:\d{2}(?::\d{2})?)\s+(?P<speaker>.+?)$"
-)
+_GMEET_LINE_RE = re.compile(r"^(?P<timestamp>\d{1,2}:\d{2}(?::\d{2})?)\s+(?P<speaker>.+?)$")
 
 
 def _parse_google_meet_txt(raw: str) -> list[TranscriptLine]:
@@ -81,7 +78,7 @@ def _parse_google_meet_txt(raw: str) -> list[TranscriptLine]:
     lines of text.
     """
     lines_out: list[TranscriptLine] = []
-    raw_lines = [l.rstrip() for l in raw.splitlines()]
+    raw_lines = [line.rstrip() for line in raw.splitlines()]
 
     i = 0
     while i < len(raw_lines):
@@ -97,9 +94,7 @@ def _parse_google_meet_txt(raw: str) -> list[TranscriptLine]:
                 i += 1
             text = " ".join(text_parts).strip()
             if text:
-                lines_out.append(
-                    TranscriptLine(speaker=speaker, timestamp=timestamp, text=text)
-                )
+                lines_out.append(TranscriptLine(speaker=speaker, timestamp=timestamp, text=text))
         else:
             i += 1
 
@@ -120,13 +115,9 @@ def _parse_simple_txt(raw: str) -> list[TranscriptLine]:
             speaker = speaker.strip()
             text = text.strip()
             if speaker and text:
-                lines_out.append(
-                    TranscriptLine(speaker=speaker, timestamp=None, text=text)
-                )
+                lines_out.append(TranscriptLine(speaker=speaker, timestamp=None, text=text))
         else:
-            lines_out.append(
-                TranscriptLine(speaker="[Unknown]", timestamp=None, text=raw_line)
-            )
+            lines_out.append(TranscriptLine(speaker="[Unknown]", timestamp=None, text=raw_line))
     return lines_out
 
 
@@ -154,6 +145,7 @@ def _parse_json_transcript(raw: str) -> list[TranscriptLine]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def load_transcript_from_file(
     path: Path,

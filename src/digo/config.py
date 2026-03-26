@@ -27,6 +27,7 @@ REPORTS_DIR = OUTPUT_DIR / "reports"
 # PDF resources — place files here after receiving them
 BATTLE_PLAN_PDF = RESOURCES_DIR / "battle_plan.pdf"
 BEYOND_BITCOIN_PDF = RESOURCES_DIR / "beyond_bitcoin.pdf"
+DIGITAL_GOLD_WHITE_PAPER_PDF = RESOURCES_DIR / "digital_gold_white_paper.pdf"
 
 # ---------------------------------------------------------------------------
 # LLM
@@ -81,6 +82,11 @@ def validate() -> list[str]:
     if not BEYOND_BITCOIN_PDF.exists():
         warnings.append(
             f"Beyond Bitcoin PDF not found at {BEYOND_BITCOIN_PDF}. "
+            "Please place it there when available."
+        )
+    if not DIGITAL_GOLD_WHITE_PAPER_PDF.exists():
+        warnings.append(
+            f"Digital Gold White Paper PDF not found at {DIGITAL_GOLD_WHITE_PAPER_PDF}. "
             "Please place it there when available."
         )
     if not OPS_MANAGER_EMAIL:

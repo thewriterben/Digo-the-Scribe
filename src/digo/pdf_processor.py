@@ -4,6 +4,7 @@ PDF processor for Digo the Scribe.
 Loads, indexes, and allows semantic retrieval of content from:
   • The Digital Gold Co Battle Plan
   • Beyond Bitcoin by John Gotts
+  • The Digital Gold White Paper
 
 IMPORTANT: Digo never fabricates content from these documents.  If a passage
 cannot be located with high confidence the query is flagged for human review.

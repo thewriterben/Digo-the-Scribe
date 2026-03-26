@@ -13,6 +13,7 @@ use by Operations Manager Benjamin J. Snider (aka *thewriterben*).
 | **Meeting notes** | Parses Google Meet caption exports (or pasted transcripts) and produces structured, Markdown-formatted notes with speaker attribution. |
 | **Battle Plan cross-reference** | Every significant discussion point is matched against the Digital Gold Co Battle Plan PDF, with exact page citations. |
 | **Beyond Bitcoin reference** | Key crypto/fund topics are cross-referenced against *Beyond Bitcoin* by John Gotts, with page citations. |
+| **Digital Gold White Paper reference** | Topics are cross-referenced against the Digital Gold White Paper, with page citations. |
 | **Progress reports** | Generates concise reports showing Battle Plan milestone progress and blockers. |
 | **Anti-hallucination** | Digo **never fabricates** information. When it cannot confirm a fact from the transcript or loaded documents it flags it `[NEEDS VERIFICATION — see Operations Manager]` and can generate a formal escalation notice to Benjamin Snider. |
 | **Extensible resources** | Additional PDFs (e.g. CFV-Metrics-Agent data) can be loaded at any time without code changes. |
@@ -78,6 +79,7 @@ Place the following files in the `resources/` directory:
 |---|---|
 | `resources/battle_plan.pdf` | Digital Gold Co Battle Plan |
 | `resources/beyond_bitcoin.pdf` | *Beyond Bitcoin* by John Gotts |
+| `resources/digital_gold_white_paper.pdf` | Digital Gold White Paper |
 
 These files are excluded from version control (`.gitignore`) to protect sensitive
 business information.

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from digo import config
 from digo.agent import DigoAgent
 
 # ---------------------------------------------------------------------------
@@ -65,7 +66,12 @@ class TestDigoAgentInit:
 class TestDigoAgentLoadResources:
     def test_missing_pdfs_return_warnings(self):
         agent = _make_agent_no_llm()
-        warnings = agent.load_resources()
+        # Ensure PDFs are "missing" regardless of local environment
+        with (
+            patch.object(config, "BATTLE_PLAN_PDF", Path("/nonexistent/battle_plan.pdf")),
+            patch.object(config, "BEYOND_BITCOIN_PDF", Path("/nonexistent/beyond_bitcoin.pdf")),
+        ):
+            warnings = agent.load_resources()
         # Both PDFs are absent in the test environment
         assert any("Battle Plan" in w for w in warnings)
         assert any("Beyond Bitcoin" in w for w in warnings)

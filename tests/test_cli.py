@@ -8,7 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from digo.cli import build_parser, cmd_escalate, cmd_notes, cmd_report, cmd_status
+from digo.cli import (
+    build_parser,
+    cmd_escalate,
+    cmd_load_resource,
+    cmd_notes,
+    cmd_report,
+    cmd_status,
+)
 
 # ---------------------------------------------------------------------------
 # Parser construction
@@ -80,6 +87,13 @@ class TestBuildParser:
         parser = build_parser()
         with pytest.raises(SystemExit):
             parser.parse_args([])
+
+    def test_load_resource_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["load-resource", "--name", "CFV Metrics", "--path", "cfv.pdf"])
+        assert args.command == "load-resource"
+        assert args.name == "CFV Metrics"
+        assert args.path == "cfv.pdf"
 
 
 # ---------------------------------------------------------------------------
@@ -221,3 +235,44 @@ class TestMain:
 
         with patch("sys.argv", ["digo", "status"]):
             main()
+
+
+# ---------------------------------------------------------------------------
+# load-resource command
+# ---------------------------------------------------------------------------
+
+
+class TestCmdLoadResource:
+    def test_load_resource_success(self, tmp_path: Path):
+        pdf_file = tmp_path / "extra.pdf"
+        pdf_file.write_bytes(b"%PDF fake content")
+
+        agent = MagicMock()
+        args = argparse.Namespace(name="Extra Doc", path=str(pdf_file))
+        cmd_load_resource(agent, args)
+        agent.load_resource_from_path.assert_called_once_with("Extra Doc", pdf_file)
+
+    def test_load_resource_file_not_found(self):
+        agent = MagicMock()
+        args = argparse.Namespace(name="Missing", path="/nonexistent/file.pdf")
+        with pytest.raises(SystemExit):
+            cmd_load_resource(agent, args)
+
+    def test_load_resource_not_pdf(self, tmp_path: Path):
+        txt_file = tmp_path / "notes.txt"
+        txt_file.write_text("not a pdf", encoding="utf-8")
+
+        agent = MagicMock()
+        args = argparse.Namespace(name="Bad File", path=str(txt_file))
+        with pytest.raises(SystemExit):
+            cmd_load_resource(agent, args)
+
+    def test_load_resource_agent_error(self, tmp_path: Path):
+        pdf_file = tmp_path / "bad.pdf"
+        pdf_file.write_bytes(b"%PDF corrupted")
+
+        agent = MagicMock()
+        agent.load_resource_from_path.side_effect = RuntimeError("PDF parse error")
+        args = argparse.Namespace(name="Bad PDF", path=str(pdf_file))
+        with pytest.raises(SystemExit):
+            cmd_load_resource(agent, args)

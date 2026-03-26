@@ -17,6 +17,7 @@ env/
 .env
 config/google_credentials.json
 config/google_token.json
+config/token.json
 
 # Sensitive resources — PDFs are kept locally only
 # (Add them to the resources/ folder but do NOT commit them)

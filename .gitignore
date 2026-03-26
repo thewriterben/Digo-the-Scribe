@@ -1,0 +1,41 @@
+# Python artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment / secrets — NEVER commit these
+.env
+config/google_credentials.json
+config/google_token.json
+
+# Sensitive resources — PDFs are kept locally only
+# (Add them to the resources/ folder but do NOT commit them)
+resources/*.pdf
+resources/*.docx
+resources/*.xlsx
+
+# Output files (generated at runtime)
+output/
+
+# Test artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+Thumbs.db

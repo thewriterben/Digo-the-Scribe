@@ -12,11 +12,9 @@ cannot be located with high confidence the query is flagged for human review.
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import pdfplumber
 
@@ -27,9 +25,9 @@ logger = logging.getLogger(__name__)
 class DocumentChunk:
     """A page-level chunk of text extracted from a PDF."""
 
-    source: str          # logical name of the document, e.g. "Battle Plan"
+    source: str  # logical name of the document, e.g. "Battle Plan"
     file_path: str
-    page_number: int     # 1-indexed
+    page_number: int  # 1-indexed
     text: str
 
     @property
@@ -51,12 +49,11 @@ class IndexedDocument:
     # ------------------------------------------------------------------
 
     @classmethod
-    def from_pdf(cls, name: str, path: Path) -> "IndexedDocument":
+    def from_pdf(cls, name: str, path: Path) -> IndexedDocument:
         """Load a PDF and extract text page by page."""
         if not path.exists():
             raise FileNotFoundError(
-                f"PDF for '{name}' not found at {path}. "
-                "Please provide the file and restart Digo."
+                f"PDF for '{name}' not found at {path}. Please provide the file and restart Digo."
             )
 
         doc = cls(name=name, file_path=path)
@@ -92,9 +89,7 @@ class IndexedDocument:
 
     def full_text(self) -> str:
         """Return the complete document text (all pages joined)."""
-        return "\n\n".join(
-            f"[Page {c.page_number}]\n{c.text}" for c in self.chunks
-        )
+        return "\n\n".join(f"[Page {c.page_number}]\n{c.text}" for c in self.chunks)
 
     def search(self, query: str, max_results: int = 5) -> list[DocumentChunk]:
         """
@@ -117,7 +112,7 @@ class IndexedDocument:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [chunk for _, chunk in scored[:max_results]]
 
-    def get_page(self, page_number: int) -> Optional[DocumentChunk]:
+    def get_page(self, page_number: int) -> DocumentChunk | None:
         for chunk in self.chunks:
             if chunk.page_number == page_number:
                 return chunk
@@ -148,15 +143,13 @@ class ResourceLibrary:
         self._documents[name] = doc
         return doc
 
-    def get(self, name: str) -> Optional[IndexedDocument]:
+    def get(self, name: str) -> IndexedDocument | None:
         return self._documents.get(name)
 
     def loaded_names(self) -> list[str]:
         return list(self._documents.keys())
 
-    def search_all(
-        self, query: str, max_per_doc: int = 3
-    ) -> dict[str, list[DocumentChunk]]:
+    def search_all(self, query: str, max_per_doc: int = 3) -> dict[str, list[DocumentChunk]]:
         """Search across all loaded documents."""
         return {
             name: doc.search(query, max_results=max_per_doc)
@@ -172,8 +165,5 @@ class ResourceLibrary:
         lines = ["Loaded documents:"]
         for doc in self._documents.values():
             s = doc.summary_dict()
-            lines.append(
-                f"  • {s['name']} — {s['total_pages_with_text']} pages "
-                f"({s['file_path']})"
-            )
+            lines.append(f"  • {s['name']} — {s['total_pages_with_text']} pages ({s['file_path']})")
         return "\n".join(lines)

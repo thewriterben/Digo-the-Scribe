@@ -76,8 +76,7 @@ def validate() -> list[str]:
         warnings.append("ANTHROPIC_API_KEY is not set — LLM calls will fail.")
     if not BATTLE_PLAN_PDF.exists():
         warnings.append(
-            f"Battle Plan PDF not found at {BATTLE_PLAN_PDF}. "
-            "Please place it there when available."
+            f"Battle Plan PDF not found at {BATTLE_PLAN_PDF}. Please place it there when available."
         )
     if not BEYOND_BITCOIN_PDF.exists():
         warnings.append(
@@ -85,7 +84,5 @@ def validate() -> list[str]:
             "Please place it there when available."
         )
     if not OPS_MANAGER_EMAIL:
-        warnings.append(
-            "OPS_MANAGER_EMAIL is not set — escalation emails cannot be sent."
-        )
+        warnings.append("OPS_MANAGER_EMAIL is not set — escalation emails cannot be sent.")
     return warnings

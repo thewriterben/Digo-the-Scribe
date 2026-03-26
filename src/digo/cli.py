@@ -88,6 +88,23 @@ def cmd_escalate(agent: DigoAgent, args: argparse.Namespace) -> None:
     console.print(notice)
 
 
+def cmd_load_resource(agent: DigoAgent, args: argparse.Namespace) -> None:
+    path = Path(args.path)
+    if not path.exists():
+        console.print(f"[red]File not found: {path}[/red]")
+        sys.exit(1)
+    if path.suffix.lower() != ".pdf":
+        console.print("[red]Error: only PDF files are supported.[/red]")
+        sys.exit(1)
+
+    try:
+        agent.load_resource_from_path(args.name, path)
+        console.print(f"[green]Loaded resource '{args.name}' from {path}[/green]")
+    except Exception as exc:
+        console.print(f"[red]Failed to load resource: {exc}[/red]")
+        sys.exit(1)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="digo",
@@ -119,6 +136,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_esc.add_argument("--title", help="Meeting title")
     p_esc.add_argument("--date", help="Meeting date")
 
+    # --- load-resource ---
+    p_load = sub.add_parser("load-resource", help="Load an additional PDF resource")
+    p_load.add_argument("--name", "-n", required=True, help="Display name for the resource")
+    p_load.add_argument("--path", "-p", required=True, help="Path to the PDF file")
+
     return parser
 
 
@@ -137,6 +159,7 @@ def main() -> None:
         "notes": cmd_notes,
         "report": cmd_report,
         "escalate": cmd_escalate,
+        "load-resource": cmd_load_resource,
     }
     commands[args.command](agent, args)
 

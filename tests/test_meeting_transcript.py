@@ -15,10 +15,10 @@ from digo.meeting_transcript import (
     load_transcript_from_text,
 )
 
-
 # ---------------------------------------------------------------------------
 # TranscriptLine
 # ---------------------------------------------------------------------------
+
 
 class TestTranscriptLine:
     def test_formatted_with_timestamp(self):
@@ -33,6 +33,7 @@ class TestTranscriptLine:
 # ---------------------------------------------------------------------------
 # MeetingTranscript
 # ---------------------------------------------------------------------------
+
 
 class TestMeetingTranscript:
     def _make_transcript(self) -> MeetingTranscript:
@@ -62,6 +63,7 @@ class TestMeetingTranscript:
 # load_transcript_from_text
 # ---------------------------------------------------------------------------
 
+
 class TestLoadFromText:
     def test_simple_speaker_colon_format(self):
         raw = textwrap.dedent("""\
@@ -90,6 +92,7 @@ class TestLoadFromText:
     def test_meeting_date_defaults_to_today(self):
         transcript = load_transcript_from_text("Alice: Hello.", meeting_title="T")
         import datetime
+
         assert transcript.meeting_date == datetime.date.today().isoformat()
 
     def test_empty_text_produces_empty_lines(self):
@@ -100,6 +103,7 @@ class TestLoadFromText:
 # ---------------------------------------------------------------------------
 # load_transcript_from_file
 # ---------------------------------------------------------------------------
+
 
 class TestLoadFromFile:
     def test_load_simple_txt_file(self, tmp_path: Path):

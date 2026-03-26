@@ -7,12 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from digo.agent import BATTLE_PLAN_KEY, BEYOND_BITCOIN_KEY, DigoAgent
-
+from digo import config
+from digo.agent import DigoAgent
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_agent_no_llm() -> DigoAgent:
     """Return a DigoAgent with no LLM key (offline mode)."""
@@ -39,6 +40,7 @@ def _make_agent_with_mock_llm(response_text: str = "Mock LLM response") -> DigoA
 # DigoAgent — initialisation
 # ---------------------------------------------------------------------------
 
+
 class TestDigoAgentInit:
     def test_no_api_key_llm_is_none(self):
         agent = _make_agent_no_llm()
@@ -60,10 +62,16 @@ class TestDigoAgentInit:
 # DigoAgent — resource loading
 # ---------------------------------------------------------------------------
 
+
 class TestDigoAgentLoadResources:
     def test_missing_pdfs_return_warnings(self):
         agent = _make_agent_no_llm()
-        warnings = agent.load_resources()
+        # Ensure PDFs are "missing" regardless of local environment
+        with (
+            patch.object(config, "BATTLE_PLAN_PDF", Path("/nonexistent/battle_plan.pdf")),
+            patch.object(config, "BEYOND_BITCOIN_PDF", Path("/nonexistent/beyond_bitcoin.pdf")),
+        ):
+            warnings = agent.load_resources()
         # Both PDFs are absent in the test environment
         assert any("Battle Plan" in w for w in warnings)
         assert any("Beyond Bitcoin" in w for w in warnings)
@@ -90,6 +98,7 @@ class TestDigoAgentLoadResources:
 # DigoAgent — note-taking
 # ---------------------------------------------------------------------------
 
+
 class TestDigoAgentNoteTaking:
     def test_take_notes_from_text_calls_llm(self):
         agent = _make_agent_with_mock_llm("## Notes\n\nSome notes here.")
@@ -115,6 +124,7 @@ class TestDigoAgentNoteTaking:
 # DigoAgent — escalation
 # ---------------------------------------------------------------------------
 
+
 class TestDigoAgentEscalation:
     def test_escalation_notice_contains_required_fields(self):
         agent = _make_agent_no_llm()
@@ -133,6 +143,7 @@ class TestDigoAgentEscalation:
 
     def test_escalation_without_date_uses_today(self):
         import datetime
+
         agent = _make_agent_no_llm()
         notice = agent.create_escalation_notice(
             topic="Topic",
@@ -148,11 +159,13 @@ class TestDigoAgentEscalation:
 # DigoAgent — persistence
 # ---------------------------------------------------------------------------
 
+
 class TestDigoAgentPersistence:
     def test_save_notes_creates_file(self, tmp_path: Path):
         agent = _make_agent_no_llm()
         # Override output path for testing
         from digo import config as cfg
+
         original = cfg.NOTES_DIR
         cfg.NOTES_DIR = tmp_path / "notes"
 
@@ -166,6 +179,7 @@ class TestDigoAgentPersistence:
     def test_save_report_creates_file(self, tmp_path: Path):
         agent = _make_agent_no_llm()
         from digo import config as cfg
+
         original = cfg.REPORTS_DIR
         cfg.REPORTS_DIR = tmp_path / "reports"
 

@@ -141,6 +141,12 @@ digo escalate \
   --date 2026-03-26
 ```
 
+### Load an additional resource
+
+```bash
+digo load-resource --name "CFV Metrics" --path resources/cfv_metrics.pdf
+```
+
 ---
 
 ## Running the tests
@@ -183,7 +189,11 @@ agent.load_resources()                               # loads standard PDFs
 agent.load_resource_from_path("CFV Metrics", Path("resources/cfv_metrics.pdf"))
 ```
 
-Or via a future `digo load-resource` CLI command (planned).
+Or via the `digo load-resource` CLI command:
+
+```bash
+digo load-resource --name "CFV Metrics" --path resources/cfv_metrics.pdf
+```
 
 ---
 

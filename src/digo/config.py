@@ -52,6 +52,10 @@ GOOGLE_CREDENTIALS_FILE: str = os.environ.get(
     "GOOGLE_CREDENTIALS_FILE", str(BASE_DIR / "config" / "google_credentials.json")
 )
 
+GOOGLE_TOKEN_FILE: str = os.environ.get(
+    "GOOGLE_TOKEN_FILE", str(BASE_DIR / "config" / "token.json")
+)
+
 # Google Calendar event ID of the meeting to monitor (optional; used for
 # auto-fetching transcripts when available)
 MEET_CALENDAR_EVENT_ID: str = os.environ.get("MEET_CALENDAR_EVENT_ID", "")
@@ -75,6 +79,11 @@ def validate() -> list[str]:
     warnings: list[str] = []
     if not ANTHROPIC_API_KEY:
         warnings.append("ANTHROPIC_API_KEY is not set — LLM calls will fail.")
+    if not Path(GOOGLE_CREDENTIALS_FILE).exists():
+        warnings.append(
+            f"GOOGLE_CREDENTIALS_FILE not found at {GOOGLE_CREDENTIALS_FILE}. "
+            "Download your OAuth2 credentials JSON from Google Cloud Console and place it there."
+        )
     if not BATTLE_PLAN_PDF.exists():
         warnings.append(
             f"Battle Plan PDF not found at {BATTLE_PLAN_PDF}. Please place it there when available."

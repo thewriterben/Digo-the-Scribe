@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 # Document names used as keys in the ResourceLibrary
 BATTLE_PLAN_KEY = "Battle Plan"
 BEYOND_BITCOIN_KEY = "Beyond Bitcoin"
+DIGITAL_GOLD_WHITE_PAPER_KEY = "Digital Gold White Paper"
 
 
 class DigoAgent:
@@ -82,6 +83,7 @@ class DigoAgent:
         for key, path in (
             (BATTLE_PLAN_KEY, config.BATTLE_PLAN_PDF),
             (BEYOND_BITCOIN_KEY, config.BEYOND_BITCOIN_PDF),
+            (DIGITAL_GOLD_WHITE_PAPER_KEY, config.DIGITAL_GOLD_WHITE_PAPER_PDF),
         ):
             try:
                 self._library.load(key, path)
@@ -129,10 +131,14 @@ class DigoAgent:
 
     def _process_transcript(self, transcript: MeetingTranscript) -> str:
         """Core pipeline: extract relevant context, call LLM, return notes."""
-        # Build Battle Plan and Beyond Bitcoin excerpts relevant to the meeting
+        # Build Battle Plan, Beyond Bitcoin, and Digital Gold White Paper
+        # excerpts relevant to the meeting
         battle_plan_excerpts = self._get_relevant_excerpts(BATTLE_PLAN_KEY, transcript.full_text())
         beyond_bitcoin_excerpts = self._get_relevant_excerpts(
             BEYOND_BITCOIN_KEY, transcript.full_text()
+        )
+        white_paper_excerpts = self._get_relevant_excerpts(
+            DIGITAL_GOLD_WHITE_PAPER_KEY, transcript.full_text()
         )
 
         prompt = NOTE_TAKING_PROMPT_TEMPLATE.format(
@@ -143,6 +149,7 @@ class DigoAgent:
             document_status=self._library.status(),
             battle_plan_excerpts=battle_plan_excerpts,
             beyond_bitcoin_excerpts=beyond_bitcoin_excerpts,
+            white_paper_excerpts=white_paper_excerpts,
         )
 
         notes = self._call_llm(prompt)

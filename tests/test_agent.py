@@ -70,11 +70,17 @@ class TestDigoAgentLoadResources:
         with (
             patch.object(config, "BATTLE_PLAN_PDF", Path("/nonexistent/battle_plan.pdf")),
             patch.object(config, "BEYOND_BITCOIN_PDF", Path("/nonexistent/beyond_bitcoin.pdf")),
+            patch.object(
+                config,
+                "DIGITAL_GOLD_WHITE_PAPER_PDF",
+                Path("/nonexistent/digital_gold_white_paper.pdf"),
+            ),
         ):
             warnings = agent.load_resources()
-        # Both PDFs are absent in the test environment
+        # All three PDFs are absent in the test environment
         assert any("Battle Plan" in w for w in warnings)
         assert any("Beyond Bitcoin" in w for w in warnings)
+        assert any("Digital Gold White Paper" in w for w in warnings)
 
     def test_load_resource_from_path(self, tmp_path: Path):
         agent = _make_agent_no_llm()

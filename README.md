@@ -41,6 +41,9 @@ Digo-the-Scribe/
 │   ├── test_agent.py
 │   ├── test_audio_listener.py
 │   ├── test_cli.py
+│   ├── test_config.py
+│   ├── test_google_auth.py
+│   ├── test_google_meet.py
 │   ├── test_meeting_transcript.py
 │   └── test_pdf_processor.py
 ├── resources/               # Place PDF files here (gitignored)
@@ -92,12 +95,16 @@ business information.
 
 ### 4. (Optional) Google credentials
 
-To use Google Workspace APIs (future: auto-fetching Meet transcripts), place your
-OAuth2 credentials JSON from the Google Cloud Console at:
+To use Google Meet integration (auto-discovering upcoming meetings, fetching
+meeting metadata and participants from Google Calendar), place your OAuth2
+credentials JSON from the Google Cloud Console at:
 
 ```
 config/google_credentials.json
 ```
+
+Run `python -m digo.google_auth` once to complete the browser-based OAuth flow
+and cache a token for subsequent runs.
 
 ---
 

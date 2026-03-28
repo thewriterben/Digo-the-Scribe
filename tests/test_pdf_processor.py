@@ -81,6 +81,20 @@ class TestIndexedDocument:
         results = doc.search("zzzznotfound")
         assert results == []
 
+    def test_search_three_letter_keywords(self, tmp_path: Path):
+        """Three-letter terms like CFV, DAO, API should be included in search."""
+        pdf_path = tmp_path / "bp.pdf"
+        pdf_path.write_bytes(b"%PDF fake")
+        pages = [
+            "The CFV metrics dashboard is live.",
+            "Unrelated content about gardening tips.",
+        ]
+        with patch("digo.pdf_processor.pdfplumber.open", return_value=self._mock_pdf(pages)):
+            doc = IndexedDocument.from_pdf("Battle Plan", pdf_path)
+        results = doc.search("CFV metrics")
+        assert len(results) >= 1
+        assert "CFV" in results[0].text
+
     def test_file_not_found_raises(self):
         with pytest.raises(FileNotFoundError, match="not found"):
             IndexedDocument.from_pdf("Missing", Path("/no/such/file.pdf"))

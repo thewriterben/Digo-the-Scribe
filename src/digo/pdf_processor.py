@@ -101,7 +101,7 @@ class IndexedDocument:
         retrieved passage can be traced back to an exact page number.
         """
         query_lower = query.lower()
-        keywords = [w for w in query_lower.split() if len(w) > 3]
+        keywords = [w for w in query_lower.split() if len(w) >= 3]
 
         scored: list[tuple[int, DocumentChunk]] = []
         for chunk in self.chunks:

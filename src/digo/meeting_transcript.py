@@ -129,9 +129,20 @@ def _parse_json_transcript(raw: str) -> list[TranscriptLine]:
       [{"speaker": "...", "timestamp": "...", "text": "..."}, ...]
       [{"name": "...", "time": "...", "message": "..."}, ...]
     """
-    data = json.loads(raw)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse JSON transcript — falling back to empty.")
+        return []
+
+    if not isinstance(data, list):
+        logger.warning("JSON transcript is not a list — falling back to empty.")
+        return []
+
     lines_out: list[TranscriptLine] = []
     for item in data:
+        if not isinstance(item, dict):
+            continue
         speaker = item.get("speaker") or item.get("name") or "[Unknown]"
         timestamp = item.get("timestamp") or item.get("time")
         text = item.get("text") or item.get("message") or ""

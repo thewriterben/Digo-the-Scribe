@@ -105,8 +105,10 @@ class TestGetCredentials:
 
         assert "https://www.googleapis.com/auth/calendar.readonly" in SCOPES
 
-    def test_token_path_is_a_path(self):
-        """TOKEN_PATH is a Path instance derived from config."""
+    def test_token_path_matches_config(self):
+        """TOKEN_PATH is a Path derived from config.GOOGLE_TOKEN_FILE."""
+        from digo import config as cfg
         from digo.google_auth import TOKEN_PATH
 
         assert isinstance(TOKEN_PATH, Path)
+        assert str(TOKEN_PATH) == cfg.GOOGLE_TOKEN_FILE

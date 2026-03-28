@@ -108,6 +108,55 @@ def cmd_load_resource(agent: DigoAgent, args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+# ---------------------------------------------------------------------------
+# CFV commands
+# ---------------------------------------------------------------------------
+
+
+def cmd_cfv_report(agent: DigoAgent, _args: argparse.Namespace) -> None:
+    """Generate a daily CFV performance report."""
+    console.print("[bold cyan]Fetching CFV data and generating daily report…[/bold cyan]")
+    report = agent.generate_cfv_report()
+    console.print(Markdown(report))
+
+
+def cmd_cfv_snapshot(agent: DigoAgent, _args: argparse.Namespace) -> None:
+    """Take and store a current CFV data snapshot."""
+    console.print("[bold cyan]Taking CFV snapshot for all DGF coins…[/bold cyan]")
+    snapshot = agent.take_cfv_snapshot()
+    if not snapshot.coins:
+        console.print(
+            "[yellow]⚠  No CFV data returned. "
+            "Is cfv-metrics-agent running at the configured URL?[/yellow]"
+        )
+        return
+    console.print(f"[green]Snapshot taken: {len(snapshot.coins)} coin(s) stored.[/green]")
+    for coin in snapshot.coins:
+        price = f"${coin.current_price:,.4f}" if coin.current_price is not None else "N/A"
+        fv = f"${coin.fair_value:,.4f}" if coin.fair_value is not None else "N/A"
+        console.print(
+            f"  {coin.symbol:6s}  price={price}  fair_value={fv}  status={coin.valuation_status}"
+        )
+
+
+def cmd_cfv_alerts(agent: DigoAgent, _args: argparse.Namespace) -> None:
+    """Check for and display any CFV performance alerts."""
+    console.print("[bold cyan]Checking CFV alerts…[/bold cyan]")
+    alerts, report = agent.check_cfv_alerts()
+    if alerts:
+        console.print(f"[bold red]⚠  {len(alerts)} alert(s) triggered![/bold red]")
+    else:
+        console.print("[green]✅ No alerts triggered.[/green]")
+    console.print(Markdown(report))
+
+
+def cmd_cfv_analysis(agent: DigoAgent, _args: argparse.Namespace) -> None:
+    """Generate a Battle Plan vs CFV analysis."""
+    console.print("[bold cyan]Generating CFV vs. Battle Plan analysis…[/bold cyan]")
+    report = agent.generate_cfv_battle_plan_analysis()
+    console.print(Markdown(report))
+
+
 def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
     """Start live microphone listening, transcribe, and produce notes."""
     title = args.title or "Live Meeting"
@@ -252,6 +301,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Google Calendar event ID of a specific Meet session to use",
     )
 
+    # --- cfv-report ---
+    sub.add_parser(
+        "cfv-report",
+        help="Generate daily CFV performance report",
+    )
+
+    # --- cfv-snapshot ---
+    sub.add_parser(
+        "cfv-snapshot",
+        help="Take and store a current CFV data snapshot",
+    )
+
+    # --- cfv-alerts ---
+    sub.add_parser(
+        "cfv-alerts",
+        help="Check for and display any CFV performance alerts",
+    )
+
+    # --- cfv-analysis ---
+    sub.add_parser(
+        "cfv-analysis",
+        help="Generate Battle Plan vs CFV performance analysis",
+    )
+
     return parser
 
 
@@ -272,6 +345,10 @@ def main() -> None:
         "escalate": cmd_escalate,
         "load-resource": cmd_load_resource,
         "listen": cmd_listen,
+        "cfv-report": cmd_cfv_report,
+        "cfv-snapshot": cmd_cfv_snapshot,
+        "cfv-alerts": cmd_cfv_alerts,
+        "cfv-analysis": cmd_cfv_analysis,
     }
     commands[args.command](agent, args)
 

@@ -1,0 +1,153 @@
+name: CFV Daily Report
+
+on:
+  schedule:
+    # Runs every day at 08:00 UTC
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      create_issue_on_alerts:
+        description: "Create a GitHub Issue if alerts are triggered"
+        required: false
+        default: "true"
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  cfv-daily-report:
+    name: CFV Daily Performance Report
+    runs-on: ubuntu-latest
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CFV_METRICS_API_URL: ${{ secrets.CFV_METRICS_API_URL || 'http://localhost:3000' }}
+      CFV_ALERT_THRESHOLD: ${{ vars.CFV_ALERT_THRESHOLD || '20.0' }}
+      CFV_COINS: ${{ vars.CFV_COINS || 'BTC,ETH,DASH,NANO,NEAR,ICP,XLM,XRP,ADA,DOT,LINK' }}
+      OPS_MANAGER_EMAIL: ${{ secrets.OPS_MANAGER_EMAIL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-cfv-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-cfv-
+
+      - name: Install Digo
+        run: pip install -e "."
+
+      - name: Take CFV snapshot
+        id: snapshot
+        run: |
+          python - <<'EOF'
+          import json
+          import sys
+          from datetime import UTC, datetime
+
+          from digo.agent import DigoAgent
+          from digo.cfv_reporter import _format_snapshot_summary
+
+          agent = DigoAgent()
+          snapshot = agent.take_cfv_snapshot()
+
+          date_str = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+
+          if not snapshot.coins:
+              print("::warning::cfv-metrics-agent returned no data. Snapshot not stored.")
+              sys.exit(0)
+
+          print(f"Snapshot taken: {len(snapshot.coins)} coin(s)")
+          print(_format_snapshot_summary(snapshot))
+          EOF
+
+      - name: Generate daily CFV report
+        id: report
+        run: |
+          python - <<'EOF'
+          import sys
+          from pathlib import Path
+          from datetime import UTC, datetime
+
+          from digo.agent import DigoAgent
+
+          agent = DigoAgent()
+          agent.load_resources()
+
+          report = agent.generate_cfv_report()
+          date_str = datetime.now(tz=UTC).strftime("%Y-%m-%d")
+
+          report_path = Path("output") / "reports" / f"{date_str}_cfv_daily_report.md"
+          print(f"Report generated: {report_path}")
+          print(report[:500])
+          EOF
+
+      - name: Check for alerts
+        id: alerts
+        run: |
+          python - <<'EOF'
+          import json
+          import os
+          import sys
+
+          from digo.agent import DigoAgent
+
+          agent = DigoAgent()
+          alerts, alert_report = agent.check_cfv_alerts()
+
+          print(f"ALERT_COUNT={len(alerts)}")
+          print(alert_report)
+
+          # Write alert count to GitHub output
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+              f.write(f"alert_count={len(alerts)}\n")
+              if alerts:
+                  # Truncate for env var safety
+                  summary = alert_report[:3000]
+                  f.write(f"alert_report<<ALERT_EOF\n{summary}\nALERT_EOF\n")
+          EOF
+
+      - name: Commit snapshot and report artifacts
+        run: |
+          git config user.name "Digo the Scribe"
+          git config user.email "digo@digitalgold.co"
+          git add output/cfv_data/ output/reports/ || true
+          git diff --cached --quiet || git commit -m "chore: CFV daily snapshot $(date -u +%Y-%m-%d)"
+          git push || echo "Nothing to push"
+
+      - name: Create GitHub Issue for alerts
+        if: |
+          steps.alerts.outputs.alert_count != '0' &&
+          (github.event.inputs.create_issue_on_alerts != 'false')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const alertCount = "${{ steps.alerts.outputs.alert_count }}";
+            const alertReport = `${{ steps.alerts.outputs.alert_report }}`;
+            const today = new Date().toISOString().split('T')[0];
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ CFV Alert — ${alertCount} deviation(s) detected on ${today}`,
+              body: `## CFV Performance Alert\n\n` +
+                    `Digo detected **${alertCount}** coin(s) deviating significantly ` +
+                    `from CFV fair value.\n\n` +
+                    `${alertReport}\n\n` +
+                    `---\n` +
+                    `*Generated automatically by the [CFV Daily Report workflow](` +
+                    `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+                    `/actions/runs/${context.runId})*`,
+              labels: ["cfv-alert", "automated"],
+            });

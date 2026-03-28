@@ -73,6 +73,22 @@ OPS_MANAGER_EMAIL: str = os.environ.get("OPS_MANAGER_EMAIL", "")
 # escalate the item to the Operations Manager instead of stating it as fact.
 CONFIDENCE_THRESHOLD: float = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.85"))
 
+# ---------------------------------------------------------------------------
+# CFV Metrics Agent integration
+# ---------------------------------------------------------------------------
+# Base URL for the cfv-metrics-agent REST API.
+CFV_METRICS_API_URL: str = os.environ.get("CFV_METRICS_API_URL", "http://localhost:3000")
+
+# Directory for storing CFV data files (snapshots, history, alerts).
+CFV_DATA_DIR = OUTPUT_DIR / "cfv_data"
+
+# Percentage deviation threshold above which a price-vs-fair-value alert fires.
+CFV_ALERT_THRESHOLD: float = float(os.environ.get("CFV_ALERT_THRESHOLD", "20.0"))
+
+# DGF coins tracked by the cfv-metrics-agent (comma-separated env override).
+_cfv_coins_env: str = os.environ.get("CFV_COINS", "BTC,ETH,DASH,NANO,NEAR,ICP,XLM,XRP,ADA,DOT,LINK")
+CFV_COINS: list[str] = [c.strip().upper() for c in _cfv_coins_env.split(",") if c.strip()]
+
 
 def validate() -> list[str]:
     """Return a list of configuration warnings (not errors) for missing items."""

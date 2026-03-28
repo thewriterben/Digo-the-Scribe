@@ -238,3 +238,75 @@ class TestDigoAgentListen:
         notes = agent.take_notes_from_session(session)
         assert "Notes" in notes
         agent._llm.messages.create.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# DigoAgent — Google Meet integration
+# ---------------------------------------------------------------------------
+
+
+class TestDigoAgentMeetIntegration:
+    def test_create_meet_client(self):
+        from digo.google_meet import GoogleMeetClient
+
+        agent = _make_agent_no_llm()
+        client = agent.create_meet_client()
+        assert isinstance(client, GoogleMeetClient)
+
+    def test_get_next_meet_session_returns_session(self):
+        from digo.google_meet import MeetSession
+
+        agent = _make_agent_no_llm()
+        mock_session = MeetSession(
+            title="Test Meet",
+            meeting_date="2026-03-28",
+            start_time="2026-03-28T14:00:00Z",
+            end_time="2026-03-28T15:00:00Z",
+            meet_link="https://meet.google.com/abc-defg-hij",
+            calendar_event_id="event123",
+        )
+        mock_client = MagicMock()
+        mock_client.get_next_meeting.return_value = mock_session
+
+        with patch.object(agent, "create_meet_client", return_value=mock_client):
+            result = agent.get_next_meet_session()
+        assert result is not None
+        assert result.title == "Test Meet"
+
+    def test_get_next_meet_session_returns_none_on_error(self):
+        agent = _make_agent_no_llm()
+        mock_client = MagicMock()
+        mock_client.get_next_meeting.side_effect = Exception("API error")
+
+        with patch.object(agent, "create_meet_client", return_value=mock_client):
+            result = agent.get_next_meet_session()
+        assert result is None
+
+    def test_get_meet_session_by_event_id(self):
+        from digo.google_meet import MeetSession
+
+        agent = _make_agent_no_llm()
+        mock_session = MeetSession(
+            title="Specific Meet",
+            meeting_date="2026-03-28",
+            start_time="2026-03-28T14:00:00Z",
+            end_time="2026-03-28T15:00:00Z",
+            meet_link="https://meet.google.com/xyz-abcd-efg",
+            calendar_event_id="specific-event",
+        )
+        mock_client = MagicMock()
+        mock_client.get_meeting_by_event_id.return_value = mock_session
+
+        with patch.object(agent, "create_meet_client", return_value=mock_client):
+            result = agent.get_meet_session_by_event_id("specific-event")
+        assert result is not None
+        assert result.title == "Specific Meet"
+
+    def test_get_meet_session_by_event_id_returns_none_on_error(self):
+        agent = _make_agent_no_llm()
+        mock_client = MagicMock()
+        mock_client.get_meeting_by_event_id.side_effect = Exception("Not found")
+
+        with patch.object(agent, "create_meet_client", return_value=mock_client):
+            result = agent.get_meet_session_by_event_id("bad-id")
+        assert result is None

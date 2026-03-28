@@ -299,6 +299,25 @@ class TestBuildParserListen:
         assert args.title is None
         assert args.date is None
 
+    def test_listen_meet_flag(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen", "--meet"])
+        assert args.meet is True
+
+    def test_listen_event_id_flag(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen", "--event-id", "abc123"])
+        assert args.event_id == "abc123"
+
+    def test_listen_meet_with_title_override(self):
+        parser = build_parser()
+        args = parser.parse_args(
+            ["listen", "--meet", "--title", "Custom Title", "--date", "2026-04-01"]
+        )
+        assert args.meet is True
+        assert args.title == "Custom Title"
+        assert args.date == "2026-04-01"
+
 
 # ---------------------------------------------------------------------------
 # listen command — execution
@@ -309,7 +328,7 @@ class TestCmdListen:
     def test_listen_import_error_exits(self):
         agent = MagicMock()
         agent.create_listener.side_effect = ImportError("SpeechRecognition not installed")
-        args = argparse.Namespace(title="Test", date=None)
+        args = argparse.Namespace(title="Test", date=None, meet=False, event_id=None)
         with pytest.raises(SystemExit):
             cmd_listen(agent, args)
 
@@ -328,7 +347,7 @@ class TestCmdListen:
         mock_listener.stop.return_value = session
         mock_listener.get_transcript.return_value = session
 
-        args = argparse.Namespace(title="Test", date="2026-03-28")
+        args = argparse.Namespace(title="Test", date="2026-03-28", meet=False, event_id=None)
         cmd_listen(agent, args)
 
         # No notes should be generated since no segments
@@ -353,8 +372,129 @@ class TestCmdListen:
         agent.take_notes_from_session.return_value = "## Meeting Notes"
         agent.save_notes.return_value = tmp_path / "notes.md"
 
-        args = argparse.Namespace(title="Strategy Call", date="2026-03-28")
+        args = argparse.Namespace(
+            title="Strategy Call", date="2026-03-28", meet=False, event_id=None
+        )
         cmd_listen(agent, args)
 
         agent.take_notes_from_session.assert_called_once_with(session)
         agent.save_notes.assert_called_once()
+
+    def test_listen_with_meet_flag_uses_session_metadata(self, tmp_path: Path):
+        """When --meet is used and a session is found, metadata is used."""
+        from digo.audio_listener import ListenSession
+        from digo.google_meet import MeetSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        meet_session = MeetSession(
+            title="Q1 Strategy Review",
+            meeting_date="2026-03-28",
+            start_time="2026-03-28T14:00:00Z",
+            end_time="2026-03-28T15:00:00Z",
+            meet_link="https://meet.google.com/abc-defg-hij",
+            calendar_event_id="event123",
+            participants=["Alice", "Bob"],
+        )
+        agent.get_next_meet_session.return_value = meet_session
+
+        listen_session = ListenSession(
+            meeting_title="Q1 Strategy Review", meeting_date="2026-03-28"
+        )
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        args = argparse.Namespace(title=None, date=None, meet=True, event_id=None)
+        cmd_listen(agent, args)
+
+        # The listener should have been started with the Meet session's title
+        mock_listener.start.assert_called_once()
+        call_kwargs = mock_listener.start.call_args
+        assert call_kwargs[1]["meeting_title"] == "Q1 Strategy Review"
+        assert call_kwargs[1]["meeting_date"] == "2026-03-28"
+
+    def test_listen_with_meet_flag_no_session_found(self, tmp_path: Path):
+        """When --meet is used but no session is found, falls back to defaults."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+        agent.get_next_meet_session.return_value = None
+
+        listen_session = ListenSession(meeting_title="Live Meeting", meeting_date="2026-03-28")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        args = argparse.Namespace(title=None, date=None, meet=True, event_id=None)
+        cmd_listen(agent, args)
+
+        # Falls back to default title "Live Meeting"
+        mock_listener.start.assert_called_once()
+
+    def test_listen_with_event_id(self, tmp_path: Path):
+        """When --event-id is used, fetches specific event."""
+        from digo.audio_listener import ListenSession
+        from digo.google_meet import MeetSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        meet_session = MeetSession(
+            title="Specific Meeting",
+            meeting_date="2026-03-28",
+            start_time="2026-03-28T14:00:00Z",
+            end_time="2026-03-28T15:00:00Z",
+            meet_link="https://meet.google.com/xyz-abcd-efg",
+            calendar_event_id="specific-event",
+        )
+        agent.get_meet_session_by_event_id.return_value = meet_session
+
+        listen_session = ListenSession(meeting_title="Specific Meeting", meeting_date="2026-03-28")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        args = argparse.Namespace(title=None, date=None, meet=False, event_id="specific-event")
+        cmd_listen(agent, args)
+
+        agent.get_meet_session_by_event_id.assert_called_once_with("specific-event")
+        mock_listener.start.assert_called_once()
+        call_kwargs = mock_listener.start.call_args
+        assert call_kwargs[1]["meeting_title"] == "Specific Meeting"
+
+    def test_listen_title_overrides_meet_session(self, tmp_path: Path):
+        """When both --meet and --title are used, --title takes precedence."""
+        from digo.audio_listener import ListenSession
+        from digo.google_meet import MeetSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        meet_session = MeetSession(
+            title="Meet Title",
+            meeting_date="2026-03-28",
+            start_time="2026-03-28T14:00:00Z",
+            end_time="2026-03-28T15:00:00Z",
+            meet_link="https://meet.google.com/abc-defg-hij",
+            calendar_event_id="event123",
+        )
+        agent.get_next_meet_session.return_value = meet_session
+
+        listen_session = ListenSession(meeting_title="Custom Title", meeting_date="2026-03-28")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        args = argparse.Namespace(title="Custom Title", date=None, meet=True, event_id=None)
+        cmd_listen(agent, args)
+
+        mock_listener.start.assert_called_once()
+        call_kwargs = mock_listener.start.call_args
+        assert call_kwargs[1]["meeting_title"] == "Custom Title"

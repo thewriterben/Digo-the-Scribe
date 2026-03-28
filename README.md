@@ -31,6 +31,8 @@ Digo-the-Scribe/
 │   ├── audio_listener.py    # Live microphone capture & speech-to-text
 │   ├── cli.py               # Command-line interface
 │   ├── config.py            # All settings (loaded from env vars)
+│   ├── google_auth.py       # Google OAuth2 helper
+│   ├── google_meet.py       # Google Meet session discovery via Calendar API
 │   ├── meeting_transcript.py# Google Meet transcript parser
 │   ├── pdf_processor.py     # PDF loading & retrieval
 │   └── prompts.py           # All LLM prompts (auditable, no logic)
@@ -138,7 +140,31 @@ into structured notes.
 digo listen --title "Q1 Strategy Review" --date 2026-03-26
 ```
 
-> **Note:** This requires a working microphone and the `PyAudio` system library.
+#### Listen with Google Meet integration
+
+Use `--meet` to auto-discover the next upcoming Google Meet session from your Google
+Calendar. Digo will fetch the meeting title, date, and participants automatically:
+
+```bash
+digo listen --meet
+```
+
+You can also specify a particular Google Calendar event ID:
+
+```bash
+digo listen --event-id "abc123def456"
+```
+
+Combine `--meet` with `--title` or `--date` to override the auto-detected values:
+
+```bash
+digo listen --meet --title "Custom Title"
+```
+
+> **Note:** Google Meet integration requires valid Google OAuth2 credentials.
+> See the [Google credentials](#4-optional-google-credentials) section below.
+
+> **Note:** Live listening requires a working microphone and the `PyAudio` system library.
 > On Ubuntu/Debian: `sudo apt-get install portaudio19-dev` before `pip install PyAudio`.
 > On macOS: `brew install portaudio` before `pip install PyAudio`.
 

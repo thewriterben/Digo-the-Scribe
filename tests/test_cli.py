@@ -28,6 +28,12 @@ class TestBuildParser:
         parser = build_parser()
         assert isinstance(parser, argparse.ArgumentParser)
 
+    def test_version_flag(self):
+        parser = build_parser()
+        with pytest.raises(SystemExit) as exc_info:
+            parser.parse_args(["--version"])
+        assert exc_info.value.code == 0
+
     def test_status_subcommand(self):
         parser = build_parser()
         args = parser.parse_args(["status"])

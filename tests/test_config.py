@@ -74,3 +74,28 @@ class TestValidate:
         with patch.object(config, "OPS_MANAGER_EMAIL", ""):
             warnings = config.validate()
             assert any("OPS_MANAGER_EMAIL" in w for w in warnings)
+
+    def test_validate_warns_invalid_temperature(self):
+        """Should warn when LLM_TEMPERATURE is outside [0.0, 1.0]."""
+        with patch.object(config, "LLM_TEMPERATURE", 2.0):
+            warnings = config.validate()
+            assert any("LLM_TEMPERATURE" in w for w in warnings)
+
+    def test_validate_warns_invalid_max_tokens(self):
+        """Should warn when LLM_MAX_TOKENS is outside valid range."""
+        with patch.object(config, "LLM_MAX_TOKENS", 0):
+            warnings = config.validate()
+            assert any("LLM_MAX_TOKENS" in w for w in warnings)
+
+    def test_validate_warns_invalid_confidence_threshold(self):
+        """Should warn when CONFIDENCE_THRESHOLD is outside [0.0, 1.0]."""
+        with patch.object(config, "CONFIDENCE_THRESHOLD", 1.5):
+            warnings = config.validate()
+            assert any("CONFIDENCE_THRESHOLD" in w for w in warnings)
+
+    def test_validate_no_warning_for_valid_params(self):
+        """Valid LLM params should not produce warnings about them."""
+        warnings = config.validate()
+        assert not any("LLM_TEMPERATURE" in w for w in warnings)
+        assert not any("LLM_MAX_TOKENS" in w for w in warnings)
+        assert not any("CONFIDENCE_THRESHOLD" in w for w in warnings)

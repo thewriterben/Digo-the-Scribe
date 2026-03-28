@@ -136,7 +136,7 @@ class DigoAgent:
         try:
             client = self.create_meet_client()
             return client.get_next_meeting()
-        except (ImportError, Exception) as exc:
+        except Exception as exc:
             logger.warning("Could not fetch Google Meet sessions: %s", exc)
             return None
 
@@ -145,7 +145,7 @@ class DigoAgent:
         try:
             client = self.create_meet_client()
             return client.get_meeting_by_event_id(event_id)
-        except (ImportError, Exception) as exc:
+        except Exception as exc:
             logger.warning("Could not fetch Google Meet session %s: %s", event_id, exc)
             return None
 
@@ -323,6 +323,7 @@ class DigoAgent:
             temperature=config.LLM_TEMPERATURE,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
+            timeout=120.0,
         )
 
         # Extract text from response

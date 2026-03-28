@@ -20,6 +20,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
 
+from digo import __version__
 from digo.agent import DigoAgent
 
 console = Console()
@@ -201,6 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="digo",
         description="Digo the Scribe — Digital Gold Co Hyper Agent",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose logging")
 
     sub = parser.add_subparsers(dest="command", required=True)

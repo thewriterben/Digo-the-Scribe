@@ -171,7 +171,8 @@ digo listen --meet --title "Custom Title"
 > **Note:** Google Meet integration requires valid Google OAuth2 credentials.
 > See the [Google credentials](#4-optional-google-credentials) section below.
 
-> **Note:** Live listening requires a working microphone and the `PyAudio` system library.
+> **Note:** Live listening requires a working microphone and the audio extras.
+> Install them with `pip install -e ".[audio]"` (or `pip install -e ".[dev]"`).
 > On Ubuntu/Debian: `sudo apt-get install portaudio19-dev` before `pip install PyAudio`.
 > On macOS: `brew install portaudio` before `pip install PyAudio`.
 

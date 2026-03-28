@@ -126,3 +126,15 @@ class TestLoadFromFile:
     def test_file_not_found_raises(self):
         with pytest.raises(FileNotFoundError):
             load_transcript_from_file(Path("/nonexistent/path/transcript.txt"))
+
+    def test_malformed_json_returns_empty(self, tmp_path: Path):
+        f = tmp_path / "bad.json"
+        f.write_text("not valid json {{{", encoding="utf-8")
+        transcript = load_transcript_from_file(f, meeting_title="Bad JSON")
+        assert transcript.lines == []
+
+    def test_json_non_list_returns_empty(self, tmp_path: Path):
+        f = tmp_path / "obj.json"
+        f.write_text('{"speaker": "Alice", "text": "Hello"}', encoding="utf-8")
+        transcript = load_transcript_from_file(f, meeting_title="Non-list JSON")
+        assert transcript.lines == []

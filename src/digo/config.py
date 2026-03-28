@@ -100,4 +100,12 @@ def validate() -> list[str]:
         )
     if not OPS_MANAGER_EMAIL:
         warnings.append("OPS_MANAGER_EMAIL is not set — escalation emails cannot be sent.")
+    if not (0.0 <= LLM_TEMPERATURE <= 1.0):
+        warnings.append(f"LLM_TEMPERATURE={LLM_TEMPERATURE} is outside the valid range [0.0, 1.0].")
+    if not (1 <= LLM_MAX_TOKENS <= 200_000):
+        warnings.append(f"LLM_MAX_TOKENS={LLM_MAX_TOKENS} is outside the valid range [1, 200000].")
+    if not (0.0 <= CONFIDENCE_THRESHOLD <= 1.0):
+        warnings.append(
+            f"CONFIDENCE_THRESHOLD={CONFIDENCE_THRESHOLD} is outside the valid range [0.0, 1.0]."
+        )
     return warnings

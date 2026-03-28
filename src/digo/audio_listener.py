@@ -192,6 +192,7 @@ class AudioListener:
                 "Could not access microphone. Ensure a microphone is connected "
                 "and PyAudio is installed correctly."
             )
+            self._stop_event.set()
             return
 
         with mic as source:

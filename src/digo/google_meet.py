@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,15 @@ class MeetSession:
         return "\n".join(parts)
 
 
+def _is_google_meet_url(url: str) -> bool:
+    """Check whether *url* is a valid Google Meet URL by parsing its hostname."""
+    try:
+        parsed = urlparse(url)
+        return parsed.hostname == "meet.google.com" and parsed.scheme in ("https", "http")
+    except Exception:
+        return False
+
+
 def _extract_meet_link(event: dict) -> str:
     """Extract the Google Meet link from a Calendar event, if present."""
     # Primary location: conferenceData
@@ -75,11 +85,11 @@ def _extract_meet_link(event: dict) -> str:
     for entry_point in conf_data.get("entryPoints", []):
         if entry_point.get("entryPointType") == "video":
             uri = entry_point.get("uri", "")
-            if "meet.google.com" in uri:
+            if _is_google_meet_url(uri):
                 return uri
     # Fallback: hangoutLink field
     hangout = event.get("hangoutLink", "")
-    if "meet.google.com" in hangout:
+    if _is_google_meet_url(hangout):
         return hangout
     return ""
 

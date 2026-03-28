@@ -12,6 +12,7 @@ from digo.google_meet import (
     _event_to_meet_session,
     _extract_meet_link,
     _extract_participants,
+    _is_google_meet_url,
 )
 
 # ---------------------------------------------------------------------------
@@ -80,6 +81,29 @@ class TestMeetSession:
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
+
+
+class TestIsGoogleMeetUrl:
+    def test_valid_https_meet_url(self):
+        assert _is_google_meet_url("https://meet.google.com/abc-defg-hij") is True
+
+    def test_valid_http_meet_url(self):
+        assert _is_google_meet_url("http://meet.google.com/abc-defg-hij") is True
+
+    def test_invalid_subdomain(self):
+        assert _is_google_meet_url("https://evil-meet.google.com/abc") is False
+
+    def test_meet_in_path_only(self):
+        assert _is_google_meet_url("https://evil.com/meet.google.com") is False
+
+    def test_empty_string(self):
+        assert _is_google_meet_url("") is False
+
+    def test_non_url_string(self):
+        assert _is_google_meet_url("not a url") is False
+
+    def test_zoom_url(self):
+        assert _is_google_meet_url("https://zoom.us/j/12345") is False
 
 
 class TestExtractMeetLink:

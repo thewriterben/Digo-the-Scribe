@@ -10,6 +10,7 @@ use by Operations Manager Benjamin J. Snider (aka *thewriterben*).
 
 | Feature | Description |
 |---|---|
+| **Live meeting listening** | Listens to a live meeting via microphone, transcribes speech to text in real-time, and produces structured notes when the session ends. |
 | **Meeting notes** | Parses Google Meet caption exports (or pasted transcripts) and produces structured, Markdown-formatted notes with speaker attribution. |
 | **Battle Plan cross-reference** | Every significant discussion point is matched against the Digital Gold Co Battle Plan PDF, with exact page citations. |
 | **Beyond Bitcoin reference** | Key crypto/fund topics are cross-referenced against *Beyond Bitcoin* by John Gotts, with page citations. |
@@ -27,6 +28,7 @@ Digo-the-Scribe/
 ├── src/digo/
 │   ├── __init__.py          # Package metadata
 │   ├── agent.py             # Core DigoAgent orchestration
+│   ├── audio_listener.py    # Live microphone capture & speech-to-text
 │   ├── cli.py               # Command-line interface
 │   ├── config.py            # All settings (loaded from env vars)
 │   ├── meeting_transcript.py# Google Meet transcript parser
@@ -35,6 +37,8 @@ Digo-the-Scribe/
 ├── tests/
 │   ├── conftest.py
 │   ├── test_agent.py
+│   ├── test_audio_listener.py
+│   ├── test_cli.py
 │   ├── test_meeting_transcript.py
 │   └── test_pdf_processor.py
 ├── resources/               # Place PDF files here (gitignored)
@@ -123,6 +127,20 @@ Alice: We're on track for the token launch." \
   --title "Quick Sync" \
   --date 2026-03-26
 ```
+
+### Listen to a live meeting
+
+Digo can listen to a live meeting through your microphone and transcribe speech in
+real-time. When you stop listening (Ctrl+C), it automatically processes the transcript
+into structured notes.
+
+```bash
+digo listen --title "Q1 Strategy Review" --date 2026-03-26
+```
+
+> **Note:** This requires a working microphone and the `PyAudio` system library.
+> On Ubuntu/Debian: `sudo apt-get install portaudio19-dev` before `pip install PyAudio`.
+> On macOS: `brew install portaudio` before `pip install PyAudio`.
 
 ### Generate a progress report
 

@@ -18,6 +18,7 @@ import anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from digo import config
+from digo.audio_listener import AudioListener, ListenSession
 from digo.meeting_transcript import (
     MeetingTranscript,
     load_transcript_from_file,
@@ -98,6 +99,34 @@ class DigoAgent:
     def load_resource_from_path(self, name: str, path: Path) -> None:
         """Load an arbitrary PDF resource by name and path."""
         self._library.load(name, path)
+
+    # ------------------------------------------------------------------
+    # Live listening
+    # ------------------------------------------------------------------
+
+    def create_listener(
+        self,
+        energy_threshold: int = 300,
+        pause_threshold: float = 1.0,
+        phrase_time_limit: float | None = 30.0,
+    ) -> AudioListener:
+        """Create a new :class:`AudioListener` for live meeting capture."""
+        return AudioListener(
+            energy_threshold=energy_threshold,
+            pause_threshold=pause_threshold,
+            phrase_time_limit=phrase_time_limit,
+        )
+
+    def take_notes_from_session(self, session: ListenSession) -> str:
+        """Process a completed :class:`ListenSession` into meeting notes."""
+        raw_transcript = session.as_simple_transcript()
+        if not raw_transcript.strip():
+            return "*(No speech was captured during the listening session.)*"
+        return self.take_notes_from_text(
+            raw_transcript,
+            meeting_title=session.meeting_title,
+            meeting_date=session.meeting_date,
+        )
 
     # ------------------------------------------------------------------
     # Note-taking

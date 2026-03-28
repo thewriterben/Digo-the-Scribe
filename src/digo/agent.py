@@ -19,6 +19,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from digo import config
 from digo.audio_listener import AudioListener, ListenSession
+from digo.cfv_client import CFVClient, CFVPortfolioSnapshot
+from digo.cfv_data_store import CFVDataStore
+from digo.cfv_reporter import CFVReporter
 from digo.google_meet import GoogleMeetClient, MeetSession
 from digo.meeting_transcript import (
     MeetingTranscript,
@@ -60,6 +63,8 @@ class DigoAgent:
     def __init__(self) -> None:
         self._library = ResourceLibrary()
         self._llm: anthropic.Anthropic | None = None
+        self._cfv_client = CFVClient()
+        self._cfv_store = CFVDataStore()
         self._init_llm()
 
     # ------------------------------------------------------------------
@@ -202,6 +207,9 @@ class DigoAgent:
             DIGITAL_GOLD_WHITE_PAPER_KEY, transcript.full_text()
         )
 
+        # Inject live CFV context when the transcript mentions CFV or fund performance
+        cfv_metrics_context = self._get_cfv_context_if_relevant(transcript.full_text())
+
         prompt = NOTE_TAKING_PROMPT_TEMPLATE.format(
             meeting_title=transcript.meeting_title,
             meeting_date=transcript.meeting_date,
@@ -211,6 +219,7 @@ class DigoAgent:
             battle_plan_excerpts=battle_plan_excerpts,
             beyond_bitcoin_excerpts=beyond_bitcoin_excerpts,
             white_paper_excerpts=white_paper_excerpts,
+            cfv_metrics_context=cfv_metrics_context,
         )
 
         notes = self._call_llm(prompt)
@@ -229,6 +238,76 @@ class DigoAgent:
             battle_plan_excerpts=battle_plan_excerpts,
         )
         return self._call_llm(prompt)
+
+    # ------------------------------------------------------------------
+    # CFV metrics integration
+    # ------------------------------------------------------------------
+
+    def generate_cfv_report(self, snapshot: CFVPortfolioSnapshot | None = None) -> str:
+        """
+        Fetch current CFV data and generate a daily performance report.
+
+        If *snapshot* is provided (e.g. already fetched), it is used directly;
+        otherwise fresh data is fetched from cfv-metrics-agent.
+
+        The report is also saved to the output directory.
+        """
+        reporter = CFVReporter(llm_client=self._llm, cfv_client=self._cfv_client)
+        report = reporter.generate_daily_report(snapshot=snapshot)
+        self.save_report(report, "cfv_daily")
+        return report
+
+    def generate_cfv_battle_plan_analysis(
+        self,
+        snapshot: CFVPortfolioSnapshot | None = None,
+    ) -> str:
+        """
+        Cross-reference current CFV metrics against the 270-Day Battle Plan.
+
+        Battle Plan excerpts relevant to CFV performance are automatically
+        extracted from the loaded ResourceLibrary.
+        """
+        battle_plan_excerpts = self._get_relevant_excerpts(
+            BATTLE_PLAN_KEY, "CFV fund performance crypto fair value DGF milestones"
+        )
+        reporter = CFVReporter(llm_client=self._llm, cfv_client=self._cfv_client)
+        report = reporter.generate_battle_plan_analysis(
+            snapshot=snapshot,
+            battle_plan_excerpts=battle_plan_excerpts,
+        )
+        self.save_report(report, "cfv_battle_plan_analysis")
+        return report
+
+    def check_cfv_alerts(
+        self,
+        snapshot: CFVPortfolioSnapshot | None = None,
+        threshold: float | None = None,
+    ) -> tuple[list[dict], str]:
+        """
+        Check for significant price deviations from CFV fair value.
+
+        Returns a tuple of ``(alert_dicts, alert_report_markdown)``.
+        Alert records are persisted to ``output/cfv_data/alerts/``.
+        """
+        reporter = CFVReporter(
+            llm_client=self._llm,
+            cfv_client=self._cfv_client,
+            data_store=self._cfv_store,
+        )
+        return reporter.check_alerts(snapshot=snapshot, threshold=threshold)
+
+    def take_cfv_snapshot(self) -> CFVPortfolioSnapshot:
+        """
+        Fetch and store a CFV snapshot for all configured DGF coins.
+
+        Returns the snapshot so callers can inspect or display it immediately.
+        """
+        reporter = CFVReporter(
+            llm_client=self._llm,
+            cfv_client=self._cfv_client,
+            data_store=self._cfv_store,
+        )
+        return reporter.fetch_and_store_snapshot()
 
     # ------------------------------------------------------------------
     # Escalation
@@ -305,6 +384,43 @@ class DigoAgent:
             parts.append(f"**{chunk.reference}**\n> {excerpt}")
         return "\n\n".join(parts)
 
+    def _get_cfv_context_if_relevant(self, transcript_text: str) -> str:
+        """
+        Fetch live CFV data when the transcript mentions CFV or fund performance.
+
+        Returns a formatted summary of the current CFV portfolio snapshot, or
+        a notice that CFV data is not available / not relevant.  Data is
+        presented verbatim — never fabricated.
+        """
+        cfv_keywords = {
+            "cfv",
+            "crypto fair value",
+            "fair value",
+            "dgf",
+            "fund performance",
+            "digitalgold",
+            "digital gold fund",
+            "undervalued",
+            "overvalued",
+        }
+        lower_text = transcript_text.lower()
+        if not any(kw in lower_text for kw in cfv_keywords):
+            return "[CFV metrics not referenced in this transcript — skipped.]"
+
+        try:
+            from digo.cfv_reporter import _format_snapshot_summary
+
+            snapshot = self._cfv_client.fetch_all_coins()
+            if not snapshot.coins:
+                return (
+                    "[CFV Metrics: cfv-metrics-agent unavailable. "
+                    "Ensure it is running to include live data.]"
+                )
+            return _format_snapshot_summary(snapshot)
+        except Exception as exc:
+            logger.warning("Could not fetch CFV context for transcript: %s", exc)
+            return "[CFV Metrics: data could not be fetched at this time.]"
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -338,8 +454,10 @@ class DigoAgent:
         """Return a human-readable status summary."""
         lines = [
             "=== Digo the Scribe — Status ===",
-            f"LLM model : {config.LLM_MODEL}",
-            f"LLM ready : {'yes' if self._llm is not None else 'NO — ANTHROPIC_API_KEY missing'}",
+            f"LLM model    : {config.LLM_MODEL}",
+            f"LLM ready    : {'yes' if self._llm is not None else 'NO — ANTHROPIC_API_KEY missing'}",
+            f"CFV API URL  : {config.CFV_METRICS_API_URL}",
+            f"CFV coins    : {', '.join(config.CFV_COINS)}",
             "",
             self._library.status(),
         ]

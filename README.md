@@ -15,9 +15,10 @@ use by Operations Manager Benjamin J. Snider (aka *thewriterben*).
 | **Battle Plan cross-reference** | Every significant discussion point is matched against the Digital Gold Co Battle Plan PDF, with exact page citations. |
 | **Beyond Bitcoin reference** | Key crypto/fund topics are cross-referenced against *Beyond Bitcoin* by John Gotts, with page citations. |
 | **Digital Gold White Paper reference** | Topics are cross-referenced against the Digital Gold White Paper, with page citations. |
+| **CFV Metrics integration** | Integrates with [cfv-metrics-agent](https://github.com/thewriterben/cfv-metrics-agent) to track Crypto Fair Value performance for all 11 DGF coins, generate daily reports, and fire alerts when price deviates from CFV fair value. |
 | **Progress reports** | Generates concise reports showing Battle Plan milestone progress and blockers. |
 | **Anti-hallucination** | Digo **never fabricates** information. When it cannot confirm a fact from the transcript or loaded documents it flags it `[NEEDS VERIFICATION — see Operations Manager]` and can generate a formal escalation notice to Benjamin Snider. |
-| **Extensible resources** | Additional PDFs (e.g. CFV-Metrics-Agent data) can be loaded at any time without code changes. |
+| **Extensible resources** | Additional PDFs can be loaded at any time without code changes. |
 
 ---
 
@@ -29,6 +30,9 @@ Digo-the-Scribe/
 │   ├── __init__.py          # Package metadata
 │   ├── agent.py             # Core DigoAgent orchestration
 │   ├── audio_listener.py    # Live microphone capture & speech-to-text
+│   ├── cfv_client.py        # CFV Metrics Agent REST API client
+│   ├── cfv_data_store.py    # CFV data persistence (JSON snapshots, CSV history, alerts)
+│   ├── cfv_reporter.py      # CFV performance report & alert generator
 │   ├── cli.py               # Command-line interface
 │   ├── config.py            # All settings (loaded from env vars)
 │   ├── google_auth.py       # Google OAuth2 helper
@@ -40,6 +44,9 @@ Digo-the-Scribe/
 │   ├── conftest.py
 │   ├── test_agent.py
 │   ├── test_audio_listener.py
+│   ├── test_cfv_client.py
+│   ├── test_cfv_data_store.py
+│   ├── test_cfv_reporter.py
 │   ├── test_cli.py
 │   ├── test_config.py
 │   ├── test_google_auth.py
@@ -48,11 +55,19 @@ Digo-the-Scribe/
 │   └── test_pdf_processor.py
 ├── resources/               # Place PDF files here (gitignored)
 │   └── README.txt
-├── output/                  # Generated notes & reports (gitignored)
+├── output/                  # Generated notes, reports & CFV data (gitignored)
 │   ├── notes/
-│   └── reports/
-├── config/                  # Google credentials (gitignored)
+│   ├── reports/
+│   └── cfv_data/
+│       ├── daily/           # YYYY-MM-DD.json snapshots
+│       ├── history.csv      # Append-only per-coin history
+│       └── alerts/          # YYYY-MM-DD_alerts.json
+├── .github/
+│   └── workflows/
+│       ├── ci.yml           # Lint + test on every push/PR
+│       └── cfv-daily-report.yml  # Daily CFV performance report (08:00 UTC)
 ├── .env.example             # Environment variable template
+├── CFV_INTEGRATION.md       # CFV integration guide
 ├── pyproject.toml
 └── README.md
 ```
@@ -203,6 +218,40 @@ digo load-resource --name "CFV Metrics" --path resources/cfv_metrics.pdf
 
 ---
 
+## CFV Metrics Integration
+
+Digo integrates with [cfv-metrics-agent](https://github.com/thewriterben/cfv-metrics-agent)
+to track Crypto Fair Value (CFV) performance for all 11 DGF coins.
+
+### Take a CFV snapshot
+
+```bash
+digo cfv-snapshot
+```
+
+### Generate a daily CFV performance report
+
+```bash
+digo cfv-report
+```
+
+### Check for CFV performance alerts
+
+```bash
+digo cfv-alerts
+```
+
+### Generate a Battle Plan vs CFV analysis
+
+```bash
+digo cfv-analysis
+```
+
+> See [CFV_INTEGRATION.md](CFV_INTEGRATION.md) for full setup instructions,
+> configuration, and sample output.
+
+---
+
 ## Running the tests
 
 ```bash
@@ -231,8 +280,8 @@ endanger significant investment decisions:
 
 ## Adding future resources
 
-As additional resources become available (website links, CFV-Metrics-Agent data,
-updated Battle Plan versions), load them at runtime:
+As additional resources become available (website links, updated Battle Plan versions),
+load them at runtime:
 
 ```python
 from pathlib import Path

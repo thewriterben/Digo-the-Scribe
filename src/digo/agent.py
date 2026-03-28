@@ -19,6 +19,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from digo import config
 from digo.audio_listener import AudioListener, ListenSession
+from digo.google_meet import GoogleMeetClient, MeetSession
 from digo.meeting_transcript import (
     MeetingTranscript,
     load_transcript_from_file,
@@ -116,6 +117,37 @@ class DigoAgent:
             pause_threshold=pause_threshold,
             phrase_time_limit=phrase_time_limit,
         )
+
+    # ------------------------------------------------------------------
+    # Google Meet integration
+    # ------------------------------------------------------------------
+
+    def create_meet_client(self) -> GoogleMeetClient:
+        """Create a new :class:`GoogleMeetClient` for Meet session discovery."""
+        return GoogleMeetClient()
+
+    def get_next_meet_session(self) -> MeetSession | None:
+        """
+        Return the next upcoming Google Meet session from Google Calendar.
+
+        Returns ``None`` if no upcoming Meet session is found or if Google
+        credentials are not configured.
+        """
+        try:
+            client = self.create_meet_client()
+            return client.get_next_meeting()
+        except (ImportError, Exception) as exc:
+            logger.warning("Could not fetch Google Meet sessions: %s", exc)
+            return None
+
+    def get_meet_session_by_event_id(self, event_id: str) -> MeetSession | None:
+        """Fetch a specific Meet session by Google Calendar event ID."""
+        try:
+            client = self.create_meet_client()
+            return client.get_meeting_by_event_id(event_id)
+        except (ImportError, Exception) as exc:
+            logger.warning("Could not fetch Google Meet session %s: %s", event_id, exc)
+            return None
 
     def take_notes_from_session(self, session: ListenSession) -> str:
         """Process a completed :class:`ListenSession` into meeting notes."""

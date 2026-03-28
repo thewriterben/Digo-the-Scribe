@@ -109,14 +109,57 @@ def cmd_load_resource(agent: DigoAgent, args: argparse.Namespace) -> None:
 
 def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
     """Start live microphone listening, transcribe, and produce notes."""
+    title = args.title or "Live Meeting"
+    date = args.date or ""
+
+    # ------------------------------------------------------------------
+    # Google Meet session discovery (--meet or --event-id)
+    # ------------------------------------------------------------------
+    if getattr(args, "meet", False) or getattr(args, "event_id", None):
+        try:
+            from digo.google_meet import MeetSession
+
+            meet_session: MeetSession | None = None
+
+            if args.event_id:
+                console.print(
+                    f"[bold cyan]Fetching Google Calendar event '{args.event_id}'…[/bold cyan]"
+                )
+                meet_session = agent.get_meet_session_by_event_id(args.event_id)
+            else:
+                console.print("[bold cyan]Looking for upcoming Google Meet sessions…[/bold cyan]")
+                meet_session = agent.get_next_meet_session()
+
+            if meet_session is None:
+                console.print("[yellow]No Google Meet session found.[/yellow]")
+                if not args.title:
+                    console.print("[yellow]Falling back to default title 'Live Meeting'.[/yellow]")
+            else:
+                console.print("\n[green]Found Google Meet session:[/green]")
+                console.print(f"  Title: {meet_session.title}")
+                console.print(f"  Date: {meet_session.meeting_date}")
+                console.print(f"  Meet link: {meet_session.meet_link}")
+                if meet_session.participants:
+                    console.print(f"  Participants: {', '.join(meet_session.participants)}")
+                console.print()
+
+                # Use Meet session metadata if not explicitly overridden
+                if not args.title:
+                    title = meet_session.title
+                if not args.date:
+                    date = meet_session.meeting_date
+
+        except ImportError as exc:
+            console.print(f"[yellow]Google Meet integration unavailable: {exc}[/yellow]")
+
+    # ------------------------------------------------------------------
+    # Audio listener
+    # ------------------------------------------------------------------
     try:
         listener = agent.create_listener()
     except ImportError as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
-
-    title = args.title or "Live Meeting"
-    date = args.date or ""
 
     console.print(f"[bold cyan]Digo is now listening to '{title}'…[/bold cyan]")
     console.print("[dim]Press Ctrl+C to stop listening and generate notes.[/dim]\n")
@@ -196,6 +239,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_listen.add_argument("--title", help="Meeting title (default: 'Live Meeting')")
     p_listen.add_argument("--date", help="Meeting date (YYYY-MM-DD)")
+    p_listen.add_argument(
+        "--meet",
+        action="store_true",
+        default=False,
+        help="Auto-discover the next Google Meet session from Google Calendar",
+    )
+    p_listen.add_argument(
+        "--event-id",
+        help="Google Calendar event ID of a specific Meet session to use",
+    )
 
     return parser
 

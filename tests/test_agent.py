@@ -195,3 +195,46 @@ class TestDigoAgentPersistence:
             assert "_report.md" in path.name
         finally:
             cfg.REPORTS_DIR = original
+
+
+# ---------------------------------------------------------------------------
+# DigoAgent — live listening integration
+# ---------------------------------------------------------------------------
+
+
+class TestDigoAgentListen:
+    def test_create_listener_returns_audio_listener(self):
+        agent = _make_agent_no_llm()
+        from digo.audio_listener import AudioListener
+
+        listener = agent.create_listener()
+        assert isinstance(listener, AudioListener)
+
+    def test_create_listener_custom_params(self):
+        agent = _make_agent_no_llm()
+        listener = agent.create_listener(
+            energy_threshold=500,
+            pause_threshold=2.0,
+            phrase_time_limit=15.0,
+        )
+        assert listener._recogniser.energy_threshold == 500
+
+    def test_take_notes_from_empty_session(self):
+        from digo.audio_listener import ListenSession
+
+        agent = _make_agent_no_llm()
+        session = ListenSession(meeting_title="Empty Meeting", meeting_date="2026-03-28")
+        result = agent.take_notes_from_session(session)
+        assert "No speech" in result
+
+    def test_take_notes_from_session_with_segments(self):
+        from digo.audio_listener import ListenSegment, ListenSession
+
+        agent = _make_agent_with_mock_llm("## Notes from listened meeting")
+        session = ListenSession(meeting_title="Strategy Call", meeting_date="2026-03-28")
+        session.add_segment(ListenSegment(text="Let's discuss the plan.", timestamp="14:00:00"))
+        session.add_segment(ListenSegment(text="Agreed.", timestamp="14:00:05"))
+
+        notes = agent.take_notes_from_session(session)
+        assert "Notes" in notes
+        agent._llm.messages.create.assert_called_once()

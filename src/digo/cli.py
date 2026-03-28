@@ -6,6 +6,7 @@ Usage examples:
     digo notes --transcript transcript.txt --title "Q1 Strategy" --date 2026-03-26
     digo report --notes output/notes/2026-03-26_q1_strategy.md
     digo escalate --topic "CFV valuation" --context "..." --reason "..."
+    digo listen --title "Q1 Strategy Review" --date 2026-03-26
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
 from rich.console import Console
@@ -105,6 +107,52 @@ def cmd_load_resource(agent: DigoAgent, args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
+    """Start live microphone listening, transcribe, and produce notes."""
+    try:
+        listener = agent.create_listener()
+    except ImportError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+    title = args.title or "Live Meeting"
+    date = args.date or ""
+
+    console.print(f"[bold cyan]Digo is now listening to '{title}'…[/bold cyan]")
+    console.print("[dim]Press Ctrl+C to stop listening and generate notes.[/dim]\n")
+
+    listener.start(meeting_title=title, meeting_date=date)
+
+    last_count = 0
+    try:
+        while listener.is_listening:
+            session = listener.get_transcript()
+            if session and session.segment_count > last_count:
+                for seg in session.segments[last_count:]:
+                    console.print(
+                        f"  [dim][{seg.timestamp}][/dim] {seg.text}",
+                        highlight=False,
+                    )
+                last_count = session.segment_count
+            time.sleep(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopping listener…[/yellow]")
+
+    session = listener.stop()
+    console.print(f"\n[bold green]Captured {session.segment_count} speech segment(s).[/bold green]")
+
+    if session.segment_count == 0:
+        console.print("[yellow]No speech was captured. No notes generated.[/yellow]")
+        return
+
+    console.print("[bold cyan]Digo is processing the transcript…[/bold cyan]")
+    notes = agent.take_notes_from_session(session)
+    slug = title.lower().replace(" ", "_")
+    out_path = agent.save_notes(notes, slug)
+    console.print(f"\n[green]Notes saved → {out_path}[/green]\n")
+    console.print(Markdown(notes))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="digo",
@@ -141,6 +189,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_load.add_argument("--name", "-n", required=True, help="Display name for the resource")
     p_load.add_argument("--path", "-p", required=True, help="Path to the PDF file")
 
+    # --- listen ---
+    p_listen = sub.add_parser(
+        "listen",
+        help="Listen to a live meeting via microphone and generate notes",
+    )
+    p_listen.add_argument("--title", help="Meeting title (default: 'Live Meeting')")
+    p_listen.add_argument("--date", help="Meeting date (YYYY-MM-DD)")
+
     return parser
 
 
@@ -160,6 +216,7 @@ def main() -> None:
         "report": cmd_report,
         "escalate": cmd_escalate,
         "load-resource": cmd_load_resource,
+        "listen": cmd_listen,
     }
     commands[args.command](agent, args)
 

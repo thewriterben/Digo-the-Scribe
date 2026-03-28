@@ -11,6 +11,7 @@ import pytest
 from digo.cli import (
     build_parser,
     cmd_escalate,
+    cmd_listen,
     cmd_load_resource,
     cmd_notes,
     cmd_report,
@@ -276,3 +277,84 @@ class TestCmdLoadResource:
         args = argparse.Namespace(name="Bad PDF", path=str(pdf_file))
         with pytest.raises(SystemExit):
             cmd_load_resource(agent, args)
+
+
+# ---------------------------------------------------------------------------
+# listen command — parser
+# ---------------------------------------------------------------------------
+
+
+class TestBuildParserListen:
+    def test_listen_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen", "--title", "Weekly Sync", "--date", "2026-03-28"])
+        assert args.command == "listen"
+        assert args.title == "Weekly Sync"
+        assert args.date == "2026-03-28"
+
+    def test_listen_subcommand_defaults(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen"])
+        assert args.command == "listen"
+        assert args.title is None
+        assert args.date is None
+
+
+# ---------------------------------------------------------------------------
+# listen command — execution
+# ---------------------------------------------------------------------------
+
+
+class TestCmdListen:
+    def test_listen_import_error_exits(self):
+        agent = MagicMock()
+        agent.create_listener.side_effect = ImportError("SpeechRecognition not installed")
+        args = argparse.Namespace(title="Test", date=None)
+        with pytest.raises(SystemExit):
+            cmd_listen(agent, args)
+
+    def test_listen_no_segments_captured(self, tmp_path: Path):
+        """When no speech is captured, no notes are generated."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        session = ListenSession(meeting_title="Test", meeting_date="2026-03-28")
+
+        # Simulate: is_listening returns False immediately (listener stops right away)
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = session
+        mock_listener.get_transcript.return_value = session
+
+        args = argparse.Namespace(title="Test", date="2026-03-28")
+        cmd_listen(agent, args)
+
+        # No notes should be generated since no segments
+        agent.take_notes_from_session.assert_not_called()
+
+    def test_listen_with_segments_generates_notes(self, tmp_path: Path):
+        """When speech segments are captured, notes are generated and saved."""
+        from digo.audio_listener import ListenSegment, ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        session = ListenSession(meeting_title="Strategy Call", meeting_date="2026-03-28")
+        session.add_segment(ListenSegment(text="Let's discuss the plan.", timestamp="14:00:00"))
+        session.add_segment(ListenSegment(text="Agreed, let's go.", timestamp="14:00:05"))
+
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = session
+        mock_listener.get_transcript.return_value = session
+
+        agent.take_notes_from_session.return_value = "## Meeting Notes"
+        agent.save_notes.return_value = tmp_path / "notes.md"
+
+        args = argparse.Namespace(title="Strategy Call", date="2026-03-28")
+        cmd_listen(agent, args)
+
+        agent.take_notes_from_session.assert_called_once_with(session)
+        agent.save_notes.assert_called_once()

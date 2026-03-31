@@ -379,3 +379,30 @@ class TestDigoAgentCFV:
         alerts, report = agent.check_cfv_alerts(snapshot=snapshot)
         assert isinstance(alerts, list)
         assert isinstance(report, str)
+
+    def test_check_cfv_alerts_with_deviation(self, tmp_path: Path):
+        """Alerts fire when price deviates beyond threshold."""
+        from digo.cfv_client import CFVCoinMetrics, CFVPortfolioSnapshot
+
+        agent = _make_agent_no_llm()
+        agent._cfv_store = MagicMock()
+
+        snapshot = CFVPortfolioSnapshot(
+            coins=[
+                CFVCoinMetrics(
+                    symbol="BTC",
+                    name="Bitcoin",
+                    current_price=80000.0,
+                    fair_value=50000.0,  # 60% deviation
+                    cfv_score=0.9,
+                    valuation_status="OVERVALUED",
+                    price_multiplier=0.625,
+                    confidence_level=0.85,
+                ),
+            ],
+            fetched_at="2026-03-28T00:00:00Z",
+        )
+        alerts, _report = agent.check_cfv_alerts(snapshot=snapshot, threshold=20.0)
+        assert len(alerts) == 1
+        assert alerts[0]["symbol"] == "BTC"
+        assert abs(alerts[0]["deviation_pct"]) >= 20.0

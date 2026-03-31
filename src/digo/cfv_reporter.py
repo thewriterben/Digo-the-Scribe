@@ -10,6 +10,10 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import anthropic
 
 from digo import config
 from digo.cfv_client import CFVClient, CFVCoinMetrics, CFVPortfolioSnapshot
@@ -18,6 +22,7 @@ from digo.prompts import (
     CFV_ALERT_PROMPT_TEMPLATE,
     CFV_BATTLE_PLAN_ANALYSIS_PROMPT_TEMPLATE,
     CFV_DAILY_REPORT_PROMPT_TEMPLATE,
+    SYSTEM_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,7 +46,7 @@ class CFVReporter:
 
     def __init__(
         self,
-        llm_client=None,
+        llm_client: anthropic.Anthropic | None = None,
         cfv_client: CFVClient | None = None,
         data_store: CFVDataStore | None = None,
     ) -> None:
@@ -88,7 +93,7 @@ class CFVReporter:
         # Build previous snapshot for trend comparison
         prev_snapshot = self._load_previous_snapshot()
 
-        cfv_summary = _format_snapshot_summary(snapshot)
+        cfv_summary = format_snapshot_summary(snapshot)
         trend_summary = _format_trend_summary(snapshot, prev_snapshot)
         date_str = datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
@@ -123,7 +128,7 @@ class CFVReporter:
                 "> [NEEDS VERIFICATION — see Operations Manager]"
             )
 
-        cfv_summary = _format_snapshot_summary(snapshot)
+        cfv_summary = format_snapshot_summary(snapshot)
         date_str = datetime.now(tz=UTC).strftime("%Y-%m-%d")
 
         if not battle_plan_excerpts:
@@ -175,7 +180,7 @@ class CFVReporter:
             )
             return [], report
 
-        cfv_summary = _format_snapshot_summary(snapshot)
+        cfv_summary = format_snapshot_summary(snapshot)
         alerts_summary = _format_alerts_summary(alerts)
         prompt = CFV_ALERT_PROMPT_TEMPLATE.format(
             report_date=date_str,
@@ -196,13 +201,10 @@ class CFVReporter:
             logger.info("LLM not available — returning template-based CFV report.")
             return fallback
         try:
-            from digo import config as cfg
-            from digo.prompts import SYSTEM_PROMPT
-
             response = self._llm.messages.create(
-                model=cfg.LLM_MODEL,
-                max_tokens=cfg.LLM_MAX_TOKENS,
-                temperature=cfg.LLM_TEMPERATURE,
+                model=config.LLM_MODEL,
+                max_tokens=config.LLM_MAX_TOKENS,
+                temperature=config.LLM_TEMPERATURE,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=120.0,
@@ -227,7 +229,7 @@ class CFVReporter:
 # ---------------------------------------------------------------------------
 
 
-def _format_snapshot_summary(snapshot: CFVPortfolioSnapshot) -> str:
+def format_snapshot_summary(snapshot: CFVPortfolioSnapshot) -> str:
     """Format a CFV portfolio snapshot as a Markdown table."""
     lines = [
         f"*Fetched at: {snapshot.fetched_at}*\n",
@@ -325,7 +327,7 @@ def _pct_change(old: float | None, new: float | None) -> float | None:
 
 
 def _plain_daily_report(snapshot: CFVPortfolioSnapshot, date_str: str) -> str:
-    summary = _format_snapshot_summary(snapshot)
+    summary = format_snapshot_summary(snapshot)
     return (
         f"## CFV Daily Performance Report — {date_str}\n\n"
         "*(LLM unavailable — template-based report)*\n\n"
@@ -337,7 +339,7 @@ def _plain_daily_report(snapshot: CFVPortfolioSnapshot, date_str: str) -> str:
 
 
 def _plain_battle_plan_analysis(snapshot: CFVPortfolioSnapshot, date_str: str) -> str:
-    summary = _format_snapshot_summary(snapshot)
+    summary = format_snapshot_summary(snapshot)
     return (
         f"## CFV vs. 270-Day Battle Plan Analysis — {date_str}\n\n"
         "*(LLM unavailable — template-based analysis)*\n\n"

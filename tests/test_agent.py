@@ -310,3 +310,99 @@ class TestDigoAgentMeetIntegration:
         with patch.object(agent, "create_meet_client", return_value=mock_client):
             result = agent.get_meet_session_by_event_id("bad-id")
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# DigoAgent — progress reports
+# ---------------------------------------------------------------------------
+
+
+class TestDigoAgentProgressReport:
+    def test_generate_progress_report_calls_llm(self):
+        agent = _make_agent_with_mock_llm("## Progress Report\n\nAll on track.")
+        report = agent.generate_progress_report("## Meeting Notes\n\nDiscussed milestones.")
+        assert "Progress Report" in report
+        agent._llm.messages.create.assert_called_once()
+
+    def test_generate_progress_report_raises_without_llm(self):
+        agent = _make_agent_no_llm()
+        with pytest.raises(RuntimeError, match="LLM client not initialised"):
+            agent.generate_progress_report("## Meeting Notes")
+
+
+# ---------------------------------------------------------------------------
+# DigoAgent — CFV integration
+# ---------------------------------------------------------------------------
+
+
+class TestDigoAgentCFV:
+    def test_generate_cfv_report(self, tmp_path: Path):
+        from digo import config as cfg
+
+        original = cfg.REPORTS_DIR
+        cfg.REPORTS_DIR = tmp_path / "reports"
+
+        try:
+            agent = _make_agent_no_llm()
+            mock_client = MagicMock()
+            from digo.cfv_client import CFVCoinMetrics, CFVPortfolioSnapshot
+
+            snapshot = CFVPortfolioSnapshot(
+                coins=[
+                    CFVCoinMetrics(
+                        symbol="BTC",
+                        name="Bitcoin",
+                        current_price=50000.0,
+                        fair_value=55000.0,
+                        cfv_score=0.9,
+                        valuation_status="UNDERVALUED",
+                        price_multiplier=1.1,
+                        confidence_level=0.85,
+                    ),
+                ],
+                fetched_at="2026-03-28T00:00:00Z",
+            )
+            mock_client.fetch_all_coins.return_value = snapshot
+            agent._cfv_client = mock_client
+
+            report = agent.generate_cfv_report(snapshot=snapshot)
+            assert isinstance(report, str)
+            assert "CFV" in report or "Bitcoin" in report or "LLM" in report
+        finally:
+            cfg.REPORTS_DIR = original
+
+    def test_check_cfv_alerts(self):
+        agent = _make_agent_no_llm()
+        from digo.cfv_client import CFVPortfolioSnapshot
+
+        snapshot = CFVPortfolioSnapshot()
+        alerts, report = agent.check_cfv_alerts(snapshot=snapshot)
+        assert isinstance(alerts, list)
+        assert isinstance(report, str)
+
+    def test_check_cfv_alerts_with_deviation(self, tmp_path: Path):
+        """Alerts fire when price deviates beyond threshold."""
+        from digo.cfv_client import CFVCoinMetrics, CFVPortfolioSnapshot
+
+        agent = _make_agent_no_llm()
+        agent._cfv_store = MagicMock()
+
+        snapshot = CFVPortfolioSnapshot(
+            coins=[
+                CFVCoinMetrics(
+                    symbol="BTC",
+                    name="Bitcoin",
+                    current_price=80000.0,
+                    fair_value=50000.0,  # 60% deviation
+                    cfv_score=0.9,
+                    valuation_status="OVERVALUED",
+                    price_multiplier=0.625,
+                    confidence_level=0.85,
+                ),
+            ],
+            fetched_at="2026-03-28T00:00:00Z",
+        )
+        alerts, _report = agent.check_cfv_alerts(snapshot=snapshot, threshold=20.0)
+        assert len(alerts) == 1
+        assert alerts[0]["symbol"] == "BTC"
+        assert abs(alerts[0]["deviation_pct"]) >= 20.0

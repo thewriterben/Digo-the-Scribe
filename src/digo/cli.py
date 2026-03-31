@@ -40,6 +40,10 @@ def cmd_status(agent: DigoAgent, _args: argparse.Namespace) -> None:
 
 
 def cmd_notes(agent: DigoAgent, args: argparse.Namespace) -> None:
+    if args.transcript and args.text:
+        console.print("[red]Error: provide --transcript or --text, not both[/red]")
+        sys.exit(1)
+
     console.print("[bold cyan]Digo is processing the transcript…[/bold cyan]")
 
     if args.transcript:
@@ -165,7 +169,7 @@ def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
     # ------------------------------------------------------------------
     # Google Meet session discovery (--meet or --event-id)
     # ------------------------------------------------------------------
-    if getattr(args, "meet", False) or getattr(args, "event_id", None):
+    if args.meet or args.event_id:
         try:
             from digo.google_meet import MeetSession
 

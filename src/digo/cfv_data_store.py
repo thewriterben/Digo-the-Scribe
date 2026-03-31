@@ -24,7 +24,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from digo import config
-from digo.cfv_client import CFVCoinMetrics, CFVPortfolioSnapshot
+from digo.cfv_client import CFVCoinMetrics, CFVComponentMetrics, CFVPortfolioSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,11 @@ class CFVDataStore:
             "api_url": snapshot.api_url,
             "coins": [_coin_to_dict(c) for c in snapshot.coins],
         }
-        out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        try:
+            out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        except OSError as exc:
+            logger.error("Failed to write CFV snapshot to %s: %s", out_path, exc)
+            raise
         logger.info("CFV snapshot saved to %s", out_path)
         return out_path
 
@@ -220,8 +224,6 @@ def _coin_to_dict(coin: CFVCoinMetrics) -> dict:
 
 def _dict_to_coin(d: dict) -> CFVCoinMetrics:
     """Reconstruct a :class:`CFVCoinMetrics` from a stored dict."""
-    from digo.cfv_client import CFVComponentMetrics
-
     comp_data = d.get("components", {})
     components = CFVComponentMetrics(
         community_size=comp_data.get("community_size"),

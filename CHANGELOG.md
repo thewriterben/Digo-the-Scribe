@@ -7,6 +7,32 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `format_snapshot_summary()` — public API function for formatting CFV portfolio
+  snapshots (previously private `_format_snapshot_summary`)
+- URL validation for `CFV_METRICS_API_URL` in `config.validate()`
+- Safe parsing of numeric environment variables (`LLM_MAX_TOKENS`,
+  `LLM_TEMPERATURE`, `CONFIDENCE_THRESHOLD`, `CFV_ALERT_THRESHOLD`) — invalid
+  values now fall back to defaults instead of crashing with ValueError
+- Mutual exclusion check in `notes` CLI command — providing both `--transcript`
+  and `--text` now produces a clear error instead of silently ignoring one
+- Error handling for CFV snapshot file writes (`OSError`) in `cfv_data_store.py`
+- 22 new tests: CFV CLI commands, progress reports, env var error handling,
+  URL validation, notes mutual exclusion (256 total, 93% coverage)
+
+### Changed
+- Moved lazy imports to module level in `cfv_client.py` (datetime),
+  `cfv_data_store.py` (CFVComponentMetrics), and `cfv_reporter.py`
+  (SYSTEM_PROMPT, config) for better startup reliability and IDE support
+- Added type annotations for `DigoAgent._cfv_client` and `._cfv_store` fields
+- Added `anthropic.Anthropic | None` type annotation for `CFVReporter.__init__`
+  `llm_client` parameter
+- Replaced `getattr()` calls with direct attribute access in `cli.py` `cmd_listen`
+
+---
+
 ## [0.2.0] — 2026-03-28
 
 ### Added

@@ -22,7 +22,7 @@ from digo.cfv_client import (
     CFVPortfolioSnapshot,
 )
 from digo.cfv_data_store import CFVDataStore
-from digo.cfv_reporter import CFVReporter
+from digo.cfv_reporter import CFVReporter, format_snapshot_summary
 from digo.google_meet import GoogleMeetClient, MeetSession
 from digo.meeting_transcript import (
     MeetingTranscript,
@@ -49,6 +49,7 @@ __all__ = [
     "MeetSession",
     "MeetingTranscript",
     "ResourceLibrary",
+    "format_snapshot_summary",
     "load_transcript_from_file",
     "load_transcript_from_text",
 ]

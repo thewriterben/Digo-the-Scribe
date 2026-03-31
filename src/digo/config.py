@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -40,10 +41,16 @@ ANTHROPIC_API_KEY: str = os.environ.get("ANTHROPIC_API_KEY", "")
 LLM_MODEL: str = os.environ.get("LLM_MODEL", "claude-3-5-sonnet-20241022")
 
 # Maximum tokens returned per LLM call
-LLM_MAX_TOKENS: int = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
+try:
+    LLM_MAX_TOKENS: int = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
+except (TypeError, ValueError):
+    LLM_MAX_TOKENS = 4096
 
 # Temperature — kept low to discourage fabrication
-LLM_TEMPERATURE: float = float(os.environ.get("LLM_TEMPERATURE", "0.0"))
+try:
+    LLM_TEMPERATURE: float = float(os.environ.get("LLM_TEMPERATURE", "0.0"))
+except (TypeError, ValueError):
+    LLM_TEMPERATURE = 0.0
 
 # ---------------------------------------------------------------------------
 # Google Meet / Google Workspace
@@ -71,7 +78,10 @@ OPS_MANAGER_EMAIL: str = os.environ.get("OPS_MANAGER_EMAIL", "")
 # ---------------------------------------------------------------------------
 # When Digo's self-assessed confidence falls below this value it will
 # escalate the item to the Operations Manager instead of stating it as fact.
-CONFIDENCE_THRESHOLD: float = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.85"))
+try:
+    CONFIDENCE_THRESHOLD: float = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.85"))
+except (TypeError, ValueError):
+    CONFIDENCE_THRESHOLD = 0.85
 
 # ---------------------------------------------------------------------------
 # CFV Metrics Agent integration
@@ -83,7 +93,10 @@ CFV_METRICS_API_URL: str = os.environ.get("CFV_METRICS_API_URL", "http://localho
 CFV_DATA_DIR = OUTPUT_DIR / "cfv_data"
 
 # Percentage deviation threshold above which a price-vs-fair-value alert fires.
-CFV_ALERT_THRESHOLD: float = float(os.environ.get("CFV_ALERT_THRESHOLD", "20.0"))
+try:
+    CFV_ALERT_THRESHOLD: float = float(os.environ.get("CFV_ALERT_THRESHOLD", "20.0"))
+except (TypeError, ValueError):
+    CFV_ALERT_THRESHOLD = 20.0
 
 # DGF coins tracked by the cfv-metrics-agent (comma-separated env override).
 _cfv_coins_env: str = os.environ.get("CFV_COINS", "BTC,ETH,DASH,NANO,NEAR,ICP,XLM,XRP,ADA,DOT,LINK")
@@ -123,5 +136,11 @@ def validate() -> list[str]:
     if not (0.0 <= CONFIDENCE_THRESHOLD <= 1.0):
         warnings.append(
             f"CONFIDENCE_THRESHOLD={CONFIDENCE_THRESHOLD} is outside the valid range [0.0, 1.0]."
+        )
+    parsed_url = urlparse(CFV_METRICS_API_URL)
+    if not (parsed_url.scheme and parsed_url.netloc):
+        warnings.append(
+            f"CFV_METRICS_API_URL='{CFV_METRICS_API_URL}' is not a valid URL. "
+            "Expected format: http://host:port"
         )
     return warnings

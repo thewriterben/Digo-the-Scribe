@@ -13,12 +13,12 @@ from digo.cfv_reporter import (
     CFVReporter,
     _compute_alerts,
     _format_alerts_summary,
-    _format_snapshot_summary,
     _format_trend_summary,
     _pct_change,
     _plain_alert_report,
     _plain_battle_plan_analysis,
     _plain_daily_report,
+    format_snapshot_summary,
 )
 
 # ---------------------------------------------------------------------------
@@ -140,12 +140,12 @@ class TestComputeAlerts:
 class TestFormatSnapshotSummary:
     def test_contains_symbol(self):
         snapshot = _make_snapshot()
-        summary = _format_snapshot_summary(snapshot)
+        summary = format_snapshot_summary(snapshot)
         assert "BTC" in summary
 
     def test_contains_valuation_status(self):
         snapshot = _make_snapshot()
-        summary = _format_snapshot_summary(snapshot)
+        summary = format_snapshot_summary(snapshot)
         assert "UNDERVALUED" in summary
 
     def test_na_for_none_prices(self):
@@ -160,7 +160,7 @@ class TestFormatSnapshotSummary:
             confidence_level=None,
         )
         snapshot = _make_snapshot(coin)
-        summary = _format_snapshot_summary(snapshot)
+        summary = format_snapshot_summary(snapshot)
         assert "N/A" in summary
 
 

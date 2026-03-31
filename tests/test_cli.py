@@ -10,6 +10,10 @@ import pytest
 
 from digo.cli import (
     build_parser,
+    cmd_cfv_alerts,
+    cmd_cfv_analysis,
+    cmd_cfv_report,
+    cmd_cfv_snapshot,
     cmd_escalate,
     cmd_listen,
     cmd_load_resource,
@@ -504,3 +508,137 @@ class TestCmdListen:
         mock_listener.start.assert_called_once()
         call_kwargs = mock_listener.start.call_args
         assert call_kwargs[1]["meeting_title"] == "Custom Title"
+
+
+# ---------------------------------------------------------------------------
+# notes command — mutual exclusion
+# ---------------------------------------------------------------------------
+
+
+class TestCmdNotesMutualExclusion:
+    def test_notes_both_transcript_and_text_exits(self, tmp_path: Path):
+        """Providing both --transcript and --text should fail."""
+        f = tmp_path / "transcript.txt"
+        f.write_text("Alice: Hello.", encoding="utf-8")
+
+        agent = MagicMock()
+        args = argparse.Namespace(
+            transcript=str(f),
+            text="Alice: Hello.",
+            title="Test",
+            date=None,
+        )
+        with pytest.raises(SystemExit):
+            cmd_notes(agent, args)
+
+
+# ---------------------------------------------------------------------------
+# CFV CLI commands
+# ---------------------------------------------------------------------------
+
+
+class TestCmdCfvReport:
+    def test_cfv_report_calls_agent(self):
+        agent = MagicMock()
+        agent.generate_cfv_report.return_value = "## CFV Report"
+        args = argparse.Namespace()
+        cmd_cfv_report(agent, args)
+        agent.generate_cfv_report.assert_called_once()
+
+    def test_cfv_report_empty_report(self):
+        agent = MagicMock()
+        agent.generate_cfv_report.return_value = "## CFV Daily Report — Data Unavailable"
+        args = argparse.Namespace()
+        cmd_cfv_report(agent, args)
+        agent.generate_cfv_report.assert_called_once()
+
+
+class TestCmdCfvSnapshot:
+    def test_cfv_snapshot_with_coins(self):
+        from digo.cfv_client import CFVCoinMetrics, CFVPortfolioSnapshot
+
+        agent = MagicMock()
+        snapshot = CFVPortfolioSnapshot(
+            coins=[
+                CFVCoinMetrics(
+                    symbol="BTC",
+                    name="Bitcoin",
+                    current_price=50000.0,
+                    fair_value=55000.0,
+                    cfv_score=0.9,
+                    valuation_status="UNDERVALUED",
+                    price_multiplier=1.1,
+                    confidence_level=0.85,
+                ),
+            ],
+            fetched_at="2026-03-28T00:00:00Z",
+            api_url="http://localhost:3000",
+        )
+        agent.take_cfv_snapshot.return_value = snapshot
+        args = argparse.Namespace()
+        cmd_cfv_snapshot(agent, args)
+        agent.take_cfv_snapshot.assert_called_once()
+
+    def test_cfv_snapshot_no_coins(self):
+        from digo.cfv_client import CFVPortfolioSnapshot
+
+        agent = MagicMock()
+        agent.take_cfv_snapshot.return_value = CFVPortfolioSnapshot()
+        args = argparse.Namespace()
+        cmd_cfv_snapshot(agent, args)
+        agent.take_cfv_snapshot.assert_called_once()
+
+
+class TestCmdCfvAlerts:
+    def test_cfv_alerts_with_alerts(self):
+        agent = MagicMock()
+        agent.check_cfv_alerts.return_value = (
+            [{"symbol": "BTC", "deviation_pct": 25.0}],
+            "## Alerts\n\n⚠️ 1 alert",
+        )
+        args = argparse.Namespace()
+        cmd_cfv_alerts(agent, args)
+        agent.check_cfv_alerts.assert_called_once()
+
+    def test_cfv_alerts_no_alerts(self):
+        agent = MagicMock()
+        agent.check_cfv_alerts.return_value = ([], "## No alerts")
+        args = argparse.Namespace()
+        cmd_cfv_alerts(agent, args)
+        agent.check_cfv_alerts.assert_called_once()
+
+
+class TestCmdCfvAnalysis:
+    def test_cfv_analysis_calls_agent(self):
+        agent = MagicMock()
+        agent.generate_cfv_battle_plan_analysis.return_value = "## Analysis"
+        args = argparse.Namespace()
+        cmd_cfv_analysis(agent, args)
+        agent.generate_cfv_battle_plan_analysis.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# CFV parser tests
+# ---------------------------------------------------------------------------
+
+
+class TestBuildParserCfv:
+    def test_cfv_report_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["cfv-report"])
+        assert args.command == "cfv-report"
+
+    def test_cfv_snapshot_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["cfv-snapshot"])
+        assert args.command == "cfv-snapshot"
+
+    def test_cfv_alerts_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["cfv-alerts"])
+        assert args.command == "cfv-alerts"
+
+    def test_cfv_analysis_subcommand(self):
+        parser = build_parser()
+        args = parser.parse_args(["cfv-analysis"])
+        assert args.command == "cfv-analysis"

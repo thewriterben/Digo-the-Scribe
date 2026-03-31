@@ -10,6 +10,35 @@ project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.2.0] — 2026-03-28
 
 ### Added
+- **CFV Metrics integration** — read-only HTTP client (`cfv_client.py`) for
+  the cfv-metrics-agent REST API, with structured dataclasses (`CFVCoinMetrics`,
+  `CFVPortfolioSnapshot`, `CFVCollectorHealth`, `CFVComponentMetrics`)
+- **CFV data persistence** (`cfv_data_store.py`) — daily JSON snapshots,
+  append-only CSV history, and alert records under `output/cfv_data/`
+- **CFV report generator** (`cfv_reporter.py`) — daily performance reports,
+  Battle Plan cross-reference analysis, and deviation alert checks with
+  plain-text fallbacks when the LLM is unavailable
+- **CFV CLI commands** — `cfv-report`, `cfv-snapshot`, `cfv-alerts`,
+  `cfv-analysis` subcommands in the CLI
+- **CFV daily report workflow** (`.github/workflows/cfv-daily-report.yml`) —
+  scheduled GitHub Actions workflow that takes daily snapshots, generates
+  reports, and creates GitHub Issues when alerts fire
+- **CFV prompt templates** — `CFV_DAILY_REPORT_PROMPT_TEMPLATE`,
+  `CFV_BATTLE_PLAN_ANALYSIS_PROMPT_TEMPLATE`, and `CFV_ALERT_PROMPT_TEMPLATE`
+  in `prompts.py`
+- **Live CFV context in meeting notes** — when a transcript mentions CFV or
+  fund performance keywords, live data from cfv-metrics-agent is injected
+  into the note-taking prompt
+- CFV exports in `__init__.py` — `CFVClient`, `CFVCoinMetrics`,
+  `CFVPortfolioSnapshot`, `CFVCollectorHealth`, `CFVComponentMetrics`,
+  `CFVDataStore`, `CFVReporter` now available via `from digo import …`
+- Test suites for CFV modules: `test_cfv_client.py`, `test_cfv_data_store.py`,
+  `test_cfv_reporter.py` (100+ new tests)
+- `CFV_INTEGRATION.md` — integration guide with setup, CLI usage, data storage
+  layout, and sample output
+- `.env.example` updated with `CFV_METRICS_API_URL`, `CFV_ALERT_THRESHOLD`,
+  `CFV_COINS` variables
+- `httpx` added as a dependency for CFV API communication
 - Public API exports in `__init__.py` with `__all__` — cleaner imports
   (`from digo import DigoAgent`)
 - `--version` flag for the CLI (`digo --version`)

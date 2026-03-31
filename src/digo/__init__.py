@@ -14,6 +14,15 @@ __author__ = "Digital Gold Co / thewriterben"
 
 from digo.agent import DigoAgent
 from digo.audio_listener import AudioListener, ListenSegment, ListenSession
+from digo.cfv_client import (
+    CFVClient,
+    CFVCoinMetrics,
+    CFVCollectorHealth,
+    CFVComponentMetrics,
+    CFVPortfolioSnapshot,
+)
+from digo.cfv_data_store import CFVDataStore
+from digo.cfv_reporter import CFVReporter
 from digo.google_meet import GoogleMeetClient, MeetSession
 from digo.meeting_transcript import (
     MeetingTranscript,
@@ -24,6 +33,13 @@ from digo.pdf_processor import DocumentChunk, IndexedDocument, ResourceLibrary
 
 __all__ = [
     "AudioListener",
+    "CFVClient",
+    "CFVCoinMetrics",
+    "CFVCollectorHealth",
+    "CFVComponentMetrics",
+    "CFVDataStore",
+    "CFVPortfolioSnapshot",
+    "CFVReporter",
     "DigoAgent",
     "DocumentChunk",
     "GoogleMeetClient",

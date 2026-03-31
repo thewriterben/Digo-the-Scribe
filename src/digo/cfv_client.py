@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -117,8 +118,6 @@ class CFVClient:
         Returns a :class:`CFVPortfolioSnapshot` whose ``coins`` list may be
         empty if the agent is unavailable.
         """
-        from datetime import UTC, datetime
-
         snapshot = CFVPortfolioSnapshot(
             fetched_at=datetime.now(tz=UTC).isoformat(),
             api_url=self._base_url,

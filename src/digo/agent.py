@@ -63,8 +63,8 @@ class DigoAgent:
     def __init__(self) -> None:
         self._library = ResourceLibrary()
         self._llm: anthropic.Anthropic | None = None
-        self._cfv_client = CFVClient()
-        self._cfv_store = CFVDataStore()
+        self._cfv_client: CFVClient = CFVClient()
+        self._cfv_store: CFVDataStore = CFVDataStore()
         self._init_llm()
 
     # ------------------------------------------------------------------
@@ -408,7 +408,7 @@ class DigoAgent:
             return "[CFV metrics not referenced in this transcript — skipped.]"
 
         try:
-            from digo.cfv_reporter import _format_snapshot_summary
+            from digo.cfv_reporter import format_snapshot_summary
 
             snapshot = self._cfv_client.fetch_all_coins()
             if not snapshot.coins:
@@ -416,7 +416,7 @@ class DigoAgent:
                     "[CFV Metrics: cfv-metrics-agent unavailable. "
                     "Ensure it is running to include live data.]"
                 )
-            return _format_snapshot_summary(snapshot)
+            return format_snapshot_summary(snapshot)
         except Exception as exc:
             logger.warning("Could not fetch CFV context for transcript: %s", exc)
             return "[CFV Metrics: data could not be fetched at this time.]"

@@ -97,6 +97,7 @@ class AudioListener:
         energy_threshold: int = 300,
         pause_threshold: float = 1.0,
         phrase_time_limit: float | None = 30.0,
+        device_index: int | None = None,
     ) -> None:
         if not _SR_AVAILABLE:
             raise ImportError(_IMPORT_ERROR_MSG)
@@ -105,6 +106,7 @@ class AudioListener:
         self._recogniser.energy_threshold = energy_threshold
         self._recogniser.pause_threshold = pause_threshold
         self._phrase_time_limit = phrase_time_limit
+        self._device_index = device_index
         self._session: ListenSession | None = None
         self._stop_event = threading.Event()
         self._listen_thread: threading.Thread | None = None
@@ -186,7 +188,7 @@ class AudioListener:
     def _listen_loop(self) -> None:
         """Background loop: capture audio → recognise → store segment."""
         try:
-            mic = sr.Microphone()
+            mic = sr.Microphone(device_index=self._device_index)
         except (OSError, AttributeError):
             logger.error(
                 "Could not access microphone. Ensure a microphone is connected "

@@ -115,12 +115,14 @@ class DigoAgent:
         energy_threshold: int = 300,
         pause_threshold: float = 1.0,
         phrase_time_limit: float | None = 30.0,
+        device_index: int | None = None,
     ) -> AudioListener:
         """Create a new :class:`AudioListener` for live meeting capture."""
         return AudioListener(
             energy_threshold=energy_threshold,
             pause_threshold=pause_threshold,
             phrase_time_limit=phrase_time_limit,
+            device_index=device_index,
         )
 
     # ------------------------------------------------------------------

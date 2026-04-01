@@ -642,3 +642,207 @@ class TestBuildParserCfv:
         parser = build_parser()
         args = parser.parse_args(["cfv-analysis"])
         assert args.command == "cfv-analysis"
+
+
+# ---------------------------------------------------------------------------
+# listen command — device selection
+# ---------------------------------------------------------------------------
+
+
+class TestBuildParserListenDevice:
+    def test_listen_device_flag(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen", "--device", "Stereo Mix"])
+        assert args.device == "Stereo Mix"
+
+    def test_listen_device_default_none(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen"])
+        assert args.device is None
+
+    def test_listen_list_devices_flag(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen", "--list-devices"])
+        assert args.list_devices is True
+
+    def test_listen_list_devices_default_false(self):
+        parser = build_parser()
+        args = parser.parse_args(["listen"])
+        assert args.list_devices is False
+
+
+class TestCmdListenDevice:
+    def test_list_devices_prints_and_returns(self):
+        """--list-devices prints all devices and returns without starting listener."""
+        agent = MagicMock()
+        device_names = ["Microsoft Sound Mapper", "Microphone (Brio 101)", "Stereo Mix"]
+        with patch(
+            "speech_recognition.Microphone.list_microphone_names", return_value=device_names
+        ):
+            args = argparse.Namespace(
+                list_devices=True,
+                device=None,
+                title=None,
+                date=None,
+                meet=False,
+                event_id=None,
+            )
+            cmd_listen(agent, args)
+
+        agent.create_listener.assert_not_called()
+
+    def test_list_devices_import_error_exits(self):
+        """If SpeechRecognition is missing, --list-devices exits with error."""
+        agent = MagicMock()
+        with patch.dict("sys.modules", {"speech_recognition": None}):
+            args = argparse.Namespace(
+                list_devices=True,
+                device=None,
+                title=None,
+                date=None,
+                meet=False,
+                event_id=None,
+            )
+            with pytest.raises((SystemExit, ImportError)):
+                cmd_listen(agent, args)
+
+    def test_device_name_resolved_to_index(self):
+        """When --device is given, the correct device_index is passed to create_listener."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        listen_session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        device_names = [
+            "Microsoft Sound Mapper",
+            "Microphone (Brio 101)",
+            "Stereo Mix (Realtek HD Audio Stereo input)",
+        ]
+        with patch(
+            "speech_recognition.Microphone.list_microphone_names", return_value=device_names
+        ):
+            args = argparse.Namespace(
+                list_devices=False,
+                device="Stereo Mix",
+                title="Test",
+                date="2026-04-01",
+                meet=False,
+                event_id=None,
+            )
+            cmd_listen(agent, args)
+
+        agent.create_listener.assert_called_once_with(device_index=2)
+
+    def test_device_name_not_found_exits(self):
+        """When --device matches nothing, cmd_listen exits with an error."""
+        agent = MagicMock()
+        device_names = ["Microsoft Sound Mapper", "Microphone (Brio 101)"]
+        with patch(
+            "speech_recognition.Microphone.list_microphone_names", return_value=device_names
+        ):
+            args = argparse.Namespace(
+                list_devices=False,
+                device="Nonexistent Device",
+                title="Test",
+                date=None,
+                meet=False,
+                event_id=None,
+            )
+            with pytest.raises(SystemExit):
+                cmd_listen(agent, args)
+
+    def test_no_device_flag_uses_none_index(self):
+        """When neither --device nor AUDIO_DEVICE is set, device_index=None."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        listen_session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        with patch("digo.cli.config") as mock_config:
+            mock_config.AUDIO_DEVICE = ""
+            args = argparse.Namespace(
+                list_devices=False,
+                device=None,
+                title="Test",
+                date="2026-04-01",
+                meet=False,
+                event_id=None,
+            )
+            cmd_listen(agent, args)
+
+        agent.create_listener.assert_called_once_with(device_index=None)
+
+    def test_audio_device_env_var_used_when_no_flag(self):
+        """AUDIO_DEVICE env var is used when --device is not given."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        listen_session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        device_names = ["Microsoft Sound Mapper", "Stereo Mix (Realtek HD Audio)"]
+        with (
+            patch("speech_recognition.Microphone.list_microphone_names", return_value=device_names),
+            patch("digo.cli.config") as mock_config,
+        ):
+            mock_config.AUDIO_DEVICE = "Stereo Mix"
+            args = argparse.Namespace(
+                list_devices=False,
+                device=None,
+                title="Test",
+                date="2026-04-01",
+                meet=False,
+                event_id=None,
+            )
+            cmd_listen(agent, args)
+
+        agent.create_listener.assert_called_once_with(device_index=1)
+
+    def test_device_flag_overrides_env_var(self):
+        """--device CLI flag takes precedence over AUDIO_DEVICE env var."""
+        from digo.audio_listener import ListenSession
+
+        agent = MagicMock()
+        mock_listener = MagicMock()
+        agent.create_listener.return_value = mock_listener
+
+        listen_session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+        mock_listener.is_listening = False
+        mock_listener.stop.return_value = listen_session
+        mock_listener.get_transcript.return_value = listen_session
+
+        device_names = ["Default Mic", "Stereo Mix", "Another Device"]
+        with (
+            patch("speech_recognition.Microphone.list_microphone_names", return_value=device_names),
+            patch("digo.cli.config") as mock_config,
+        ):
+            mock_config.AUDIO_DEVICE = "Default Mic"
+            args = argparse.Namespace(
+                list_devices=False,
+                device="Another Device",
+                title="Test",
+                date="2026-04-01",
+                meet=False,
+                event_id=None,
+            )
+            cmd_listen(agent, args)
+
+        # Should use index 2 ("Another Device"), not index 0 ("Default Mic")
+        agent.create_listener.assert_called_once_with(device_index=2)

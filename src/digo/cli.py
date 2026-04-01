@@ -20,7 +20,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.markdown import Markdown
 
-from digo import __version__
+from digo import __version__, config
 from digo.agent import DigoAgent
 
 console = Console()
@@ -163,8 +163,50 @@ def cmd_cfv_analysis(agent: DigoAgent, _args: argparse.Namespace) -> None:
 
 def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
     """Start live microphone listening, transcribe, and produce notes."""
+    # ------------------------------------------------------------------
+    # Audio device listing (--list-devices)
+    # ------------------------------------------------------------------
+    if getattr(args, "list_devices", False):
+        try:
+            import speech_recognition as sr
+
+            devices = sr.Microphone.list_microphone_names()
+            console.print("[bold cyan]Available audio input devices:[/bold cyan]")
+            for idx, name in enumerate(devices):
+                console.print(f"  {idx}: {name}")
+        except ImportError as exc:
+            console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
+        return
+
     title = args.title or "Live Meeting"
     date = args.date or ""
+
+    # ------------------------------------------------------------------
+    # Resolve audio device index from --device flag or AUDIO_DEVICE env var
+    # ------------------------------------------------------------------
+    device_index: int | None = None
+    device_name: str = getattr(args, "device", None) or config.AUDIO_DEVICE
+    if device_name:
+        try:
+            import speech_recognition as sr
+
+            mic_names = sr.Microphone.list_microphone_names()
+            lower_name = device_name.lower()
+            matched = [idx for idx, name in enumerate(mic_names) if lower_name in name.lower()]
+            if not matched:
+                console.print(f"[red]Error: no audio device found matching '{device_name}'.[/red]")
+                console.print("[red]Available devices:[/red]")
+                for idx, name in enumerate(mic_names):
+                    console.print(f"  {idx}: {name}")
+                sys.exit(1)
+            device_index = matched[0]
+            console.print(
+                f"[dim]Using audio device {device_index}: {mic_names[device_index]}[/dim]"
+            )
+        except ImportError as exc:
+            console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
 
     # ------------------------------------------------------------------
     # Google Meet session discovery (--meet or --event-id)
@@ -210,7 +252,7 @@ def cmd_listen(agent: DigoAgent, args: argparse.Namespace) -> None:
     # Audio listener
     # ------------------------------------------------------------------
     try:
-        listener = agent.create_listener()
+        listener = agent.create_listener(device_index=device_index)
     except ImportError as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
@@ -303,6 +345,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_listen.add_argument(
         "--event-id",
         help="Google Calendar event ID of a specific Meet session to use",
+    )
+    p_listen.add_argument(
+        "--device",
+        help="Audio input device name (partial match). Use --list-devices to see options.",
+    )
+    p_listen.add_argument(
+        "--list-devices",
+        action="store_true",
+        default=False,
+        help="List all available audio input devices and exit",
     )
 
     # --- cfv-report ---

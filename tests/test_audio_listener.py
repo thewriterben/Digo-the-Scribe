@@ -98,6 +98,16 @@ class TestAudioListenerInit:
         assert listener._recogniser.pause_threshold == 2.0
         assert listener._phrase_time_limit == 15.0
 
+    @pytest.mark.skipif(not _SR_AVAILABLE, reason="SpeechRecognition not installed")
+    def test_listener_device_index_stored(self):
+        listener = AudioListener(device_index=3)
+        assert listener._device_index == 3
+
+    @pytest.mark.skipif(not _SR_AVAILABLE, reason="SpeechRecognition not installed")
+    def test_listener_device_index_default_none(self):
+        listener = AudioListener()
+        assert listener._device_index is None
+
 
 # ---------------------------------------------------------------------------
 # AudioListener — start / stop lifecycle
@@ -239,3 +249,53 @@ class TestImportGuard:
             pytest.raises(ImportError, match="SpeechRecognition"),
         ):
             AudioListener()
+
+
+# ---------------------------------------------------------------------------
+# AudioListener — device index passthrough
+# ---------------------------------------------------------------------------
+
+
+class TestAudioListenerDeviceIndex:
+    @pytest.mark.skipif(not _SR_AVAILABLE, reason="SpeechRecognition not installed")
+    def test_device_index_passed_to_microphone(self):
+        """device_index is forwarded to sr.Microphone in _listen_loop."""
+        import speech_recognition as sr
+
+        listener = AudioListener(device_index=24)
+
+        mock_mic_instance = MagicMock()
+        mock_mic_instance.__enter__ = MagicMock(return_value=MagicMock())
+        mock_mic_instance.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.object(sr, "Microphone", return_value=mock_mic_instance) as mock_mic_cls,
+            patch.object(listener._recogniser, "adjust_for_ambient_noise"),
+        ):
+            # Set stop event so the loop exits immediately after setup
+            listener._stop_event.set()
+            listener._session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+            listener._listen_loop()
+
+        mock_mic_cls.assert_called_once_with(device_index=24)
+
+    @pytest.mark.skipif(not _SR_AVAILABLE, reason="SpeechRecognition not installed")
+    def test_none_device_index_passed_to_microphone(self):
+        """When device_index is None, sr.Microphone is called with device_index=None."""
+        import speech_recognition as sr
+
+        listener = AudioListener(device_index=None)
+
+        mock_mic_instance = MagicMock()
+        mock_mic_instance.__enter__ = MagicMock(return_value=MagicMock())
+        mock_mic_instance.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch.object(sr, "Microphone", return_value=mock_mic_instance) as mock_mic_cls,
+            patch.object(listener._recogniser, "adjust_for_ambient_noise"),
+        ):
+            listener._stop_event.set()
+            listener._session = ListenSession(meeting_title="Test", meeting_date="2026-04-01")
+            listener._listen_loop()
+
+        mock_mic_cls.assert_called_once_with(device_index=None)

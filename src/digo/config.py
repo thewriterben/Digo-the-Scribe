@@ -103,6 +103,16 @@ _cfv_coins_env: str = os.environ.get("CFV_COINS", "BTC,ETH,DASH,NANO,NEAR,ICP,XL
 CFV_COINS: list[str] = [c.strip().upper() for c in _cfv_coins_env.split(",") if c.strip()]
 
 
+# ---------------------------------------------------------------------------
+# Audio device
+# ---------------------------------------------------------------------------
+# Name (or partial name) of the audio input device to use for live listening.
+# Leave empty to use the system default microphone.
+# Example: "Stereo Mix" to capture PC audio output via loopback.
+# The --device CLI flag takes precedence over this setting.
+AUDIO_DEVICE: str = os.environ.get("AUDIO_DEVICE", "")
+
+
 def validate() -> list[str]:
     """Return a list of configuration warnings (not errors) for missing items."""
     warnings: list[str] = []
